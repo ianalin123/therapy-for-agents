@@ -1,0 +1,13 @@
+# Secrets
+.env
+.env.*
+*.swp
+!.env.example
+!.env.local.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/

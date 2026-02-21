@@ -100,6 +100,59 @@ This project is designed for parallel development using Claude Code agents. Each
 - Error handling and fallbacks
 - Performance optimization
 
+## Frontend Design System
+
+### Tone & Aesthetic
+Warm, intimate, NOT clinical. Think: candlelight, not fluorescent. Feels like a private journal, not a medical app.
+
+### Design Tokens
+```
+bg-primary:     #0D0D0F    (near-black)
+bg-surface:     #141418
+bg-elevated:    #1C1C22
+accent-amber:   #E8A94B    (memories)
+accent-blue:    #7B9FD4    (emotions)
+accent-rose:    #C47B8A    (values)
+accent-green:   #7BAF8A    (rituals)
+accent-white:   #F0EDE8    (people — soft white)
+text-primary:   #F0EDE8
+text-secondary: #A09A92
+border-subtle:  rgba(255,255,255,0.08)
+```
+
+### Typography
+- Headings: Lora (serif — grief is literary)
+- UI/Body: Inter (clean sans-serif)
+- Load via `next/font/google` with CSS variables `--font-lora` and `--font-inter`
+
+### Graph Node Visual Treatment
+| Type | Color | Shape | Notes |
+|------|-------|-------|-------|
+| Memory | #E8A94B (amber) | Circular | Warm glow effect |
+| Person | #F0EDE8 (soft white) | Circular | Slightly larger |
+| Emotion | #7B9FD4 (blue-purple) | Circular | Smaller, subtle |
+| Value | #C47B8A (muted rose) | Circular | Medium |
+| Ritual | #7BAF8A (green) | Circular | Medium |
+
+### Graph Behavior
+- Edges: thin, semi-transparent, colored by relationship type
+- New nodes: animate in with gentle bloom/pulse
+- Corrections: nodes visibly restructure — animated, not instant
+- Hovering: tooltip with memory/value snippet
+- Clicking: opens query panel ("What else connects to this?")
+- Force parameters tuned for organized, readable layout (never chaotic)
+
+### Voice Orb
+- Animated circle responding to voice amplitude
+- Thinking: slow pulse
+- Speaking: ripple effect
+- Color shifts based on Hume emotional state
+
+### UX Rules
+- NO loading spinners — use skeleton states and smooth transitions
+- Corrections feel like a satisfying "click" — visual feedback that AI updated
+- Desktop-optimized (mobile not priority for hackathon)
+
 ## Key Design Decisions
 
 1. **Voice-first, text-fallback**: The primary interface is voice. Text chat is the fallback.

@@ -1,9 +1,13 @@
 """AgentTherapy backend — FastAPI server with WebSocket for real-time AI therapy sessions."""
 
 import json
+import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Any
 
+import anthropic
+from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +18,17 @@ from scenarios import list_scenarios, DEFAULT_SCENARIO
 
 load_dotenv()
 
-connected_clients: list[WebSocket] = []
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+logger = logging.getLogger("agenttherapy")
+
+connected_clients: set[WebSocket] = set()
+
+_anthropic_client = AsyncAnthropic()
+
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
 
 @asynccontextmanager
@@ -26,7 +40,7 @@ app = FastAPI(title="AgentTherapy", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,22 +55,21 @@ async def safe_send(ws: WebSocket, data: dict[str, Any]):
 
 
 async def broadcast(data: dict[str, Any]):
-    disconnected = []
     message = json.dumps(data)
-    for client in connected_clients:
+    disconnected = []
+    for client in list(connected_clients):
         try:
             await client.send_text(message)
         except (WebSocketDisconnect, RuntimeError):
             disconnected.append(client)
     for client in disconnected:
-        if client in connected_clients:
-            connected_clients.remove(client)
+        connected_clients.discard(client)
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    connected_clients.append(ws)
+    connected_clients.add(ws)
 
     session_id = ws.query_params.get("session", "default")
     scenario_id = ws.query_params.get("scenario", DEFAULT_SCENARIO)
@@ -83,9 +96,30 @@ async def websocket_endpoint(ws: WebSocket):
             data = await ws.receive_text()
             message = json.loads(data)
 
+            if not isinstance(message, dict) or "type" not in message:
+                await safe_send(ws, {
+                    "type": "error",
+                    "message": "Invalid message format",
+                })
+                continue
+
             if message.get("type") == "user_message":
-                user_content = message["content"]
-                print(f"[session {session_id}] Clinician: {user_content[:80]}...")
+                user_content = message.get("content", "")
+                if not isinstance(user_content, str) or not user_content.strip():
+                    await safe_send(ws, {
+                        "type": "error",
+                        "message": "Message content must be a non-empty string",
+                    })
+                    continue
+                if len(user_content) > 10000:
+                    await safe_send(ws, {
+                        "type": "error",
+                        "message": "Message too long (max 10000 characters)",
+                    })
+                    continue
+                user_content = user_content.strip()
+
+                logger.info("[session %s] Clinician: %s...", session_id, user_content[:80])
 
                 async def emit(msg: dict):
                     msg_type = msg.get("type")
@@ -102,10 +136,26 @@ async def websocket_endpoint(ws: WebSocket):
                         session=session,
                         emit=emit,
                     )
+                except anthropic.APITimeoutError as e:
+                    logger.warning("[pipeline] Claude API timeout: %s", e)
+                    await safe_send(ws, {
+                        "type": "part_response",
+                        "part": "system",
+                        "name": "System",
+                        "content": "The AI is taking too long to respond. Please try again.",
+                        "color": "#A09A92",
+                    })
+                except anthropic.RateLimitError as e:
+                    logger.warning("[pipeline] Rate limited: %s", e)
+                    await safe_send(ws, {
+                        "type": "part_response",
+                        "part": "system",
+                        "name": "System",
+                        "content": "Too many requests. Please wait a moment and try again.",
+                        "color": "#A09A92",
+                    })
                 except Exception as e:
-                    print(f"[pipeline] Error: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    logger.error("[pipeline] Unexpected error: %s", e, exc_info=True)
                     await safe_send(ws, {
                         "type": "part_response",
                         "part": "system",
@@ -122,11 +172,10 @@ async def websocket_endpoint(ws: WebSocket):
                 answer_text = "I couldn't find information about that node."
                 if node:
                     node_context = json.dumps(node, indent=2)
-                    from anthropic import AsyncAnthropic
-                    ac = AsyncAnthropic()
-                    answer = await ac.messages.create(
-                        model="claude-sonnet-4-20250514",
+                    answer = await _anthropic_client.messages.create(
+                        model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
                         max_tokens=300,
+                        timeout=30.0,
                         messages=[{
                             "role": "user",
                             "content": (
@@ -146,13 +195,10 @@ async def websocket_endpoint(ws: WebSocket):
                 })
 
     except WebSocketDisconnect:
-        if ws in connected_clients:
-            connected_clients.remove(ws)
+        connected_clients.discard(ws)
     except Exception:
-        import traceback
-        traceback.print_exc()
-        if ws in connected_clients:
-            connected_clients.remove(ws)
+        logger.error("WebSocket handler error", exc_info=True)
+        connected_clients.discard(ws)
 
 
 @app.get("/health")

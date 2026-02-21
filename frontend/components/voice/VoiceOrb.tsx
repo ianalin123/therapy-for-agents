@@ -2,10 +2,11 @@
 
 interface Props {
   mode: "hero" | "widget";
+  isListening?: boolean;
   onClick?: () => void;
 }
 
-export default function VoiceOrb({ mode, onClick }: Props) {
+export default function VoiceOrb({ mode, isListening = false, onClick }: Props) {
   const isHero = mode === "hero";
 
   return (
@@ -15,16 +16,25 @@ export default function VoiceOrb({ mode, onClick }: Props) {
         isHero ? "w-32 h-32" : "w-12 h-12"
       }`}
       style={{
-        background: "radial-gradient(circle, #1C1C22 0%, #141418 100%)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: isListening
+          ? "radial-gradient(circle, #2a1f10 0%, #141418 100%)"
+          : "radial-gradient(circle, #1C1C22 0%, #141418 100%)",
+        border: isListening
+          ? "1px solid rgba(232,169,75,0.3)"
+          : "1px solid rgba(255,255,255,0.08)",
+        boxShadow: isListening
+          ? "0 0 30px rgba(232,169,75,0.15)"
+          : "none",
       }}
     >
       {/* Breathing glow */}
       <div
-        className="absolute inset-0 rounded-full animate-orb-breathe"
+        className={`absolute inset-0 rounded-full ${isListening ? "animate-ping" : "animate-orb-breathe"}`}
         style={{
-          background:
-            "radial-gradient(circle, rgba(232,169,75,0.12) 0%, transparent 70%)",
+          background: isListening
+            ? "radial-gradient(circle, rgba(232,169,75,0.25) 0%, transparent 70%)"
+            : "radial-gradient(circle, rgba(232,169,75,0.12) 0%, transparent 70%)",
+          animationDuration: isListening ? "1.5s" : "4s",
         }}
       />
 
@@ -32,17 +42,19 @@ export default function VoiceOrb({ mode, onClick }: Props) {
       <div
         className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
         style={{
-          background:
-            "radial-gradient(circle, rgba(232,169,75,0.2) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(232,169,75,0.2) 0%, transparent 70%)",
         }}
       />
 
       {/* Outer ring pulse */}
       {isHero && (
         <div
-          className="absolute -inset-3 rounded-full animate-orb-ring"
+          className={`absolute -inset-3 rounded-full ${isListening ? "animate-ping" : "animate-orb-ring"}`}
           style={{
-            border: "1px solid rgba(232,169,75,0.1)",
+            border: isListening
+              ? "1.5px solid rgba(232,169,75,0.25)"
+              : "1px solid rgba(232,169,75,0.1)",
+            animationDuration: isListening ? "1.5s" : "4s",
           }}
         />
       )}
@@ -55,7 +67,7 @@ export default function VoiceOrb({ mode, onClick }: Props) {
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
-        style={{ color: isHero ? "#E8A94B" : "#A09A92" }}
+        style={{ color: isListening ? "#E8A94B" : isHero ? "#E8A94B" : "#A09A92" }}
       >
         <path
           strokeLinecap="round"
@@ -69,9 +81,9 @@ export default function VoiceOrb({ mode, onClick }: Props) {
       {isHero && (
         <span
           className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap transition-opacity duration-500"
-          style={{ color: "#A09A92" }}
+          style={{ color: isListening ? "#E8A94B" : "#A09A92" }}
         >
-          Tap to speak
+          {isListening ? "Listening..." : "Tap to speak"}
         </span>
       )}
     </button>

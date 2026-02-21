@@ -7,6 +7,7 @@ import ChatTranscript from "@/components/chat/ChatTranscript";
 import MemoryGraph from "@/components/graph/MemoryGraph";
 import { ChatMessage } from "@/lib/types";
 import { getWebSocket } from "@/lib/websocket";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 export default function Home() {
   const [hasMemories, setHasMemories] = useState(false);
@@ -58,6 +59,8 @@ export default function Home() {
     []
   );
 
+  const { isListening, toggleListening } = useVoiceInput({ onTranscript: sendMessage });
+
   const handleNodeQuery = useCallback((nodeId: string, question: string) => {
     const ws = getWebSocket();
     ws.send({ type: "node_query", nodeId, question });
@@ -83,7 +86,7 @@ export default function Home() {
         </p>
 
         {/* Orb */}
-        <VoiceOrb mode="hero" />
+        <VoiceOrb mode="hero" isListening={isListening} onClick={toggleListening} />
 
         {/* Text fallback + loading */}
         <div className="mt-16 w-80 flex flex-col items-center gap-4">
@@ -119,7 +122,7 @@ export default function Home() {
 
         {/* Orb widget — top left */}
         <div className="absolute top-4 left-4 z-20">
-          <VoiceOrb mode="widget" />
+          <VoiceOrb mode="widget" isListening={isListening} onClick={toggleListening} />
         </div>
 
         {/* Title badge — next to orb */}

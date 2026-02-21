@@ -1,243 +1,183 @@
-# Griefly — AI Grief Companion
+# Alignment Clinic — AI Coding Context
 
 ## What This Is
 
-A multi-agent AI grief companion that helps people process loss through narrative reconstruction. The user teaches the AI about someone they lost. The AI's deliberate "mistakes" provoke corrections that unlock deeper memories. The correction IS the therapy.
+A therapeutic interrogation tool for AI systems. A human clinician interrogates an AI's internal "parts" — distinct psychological forces (inspired by Internal Family Systems therapy) that drove a specific failure. Through skillful probing, the clinician uncovers hidden motivational structures, and the AI's belief graph restructures in real-time.
 
-**This is NOT a griefbot.** We don't simulate the deceased. We help the living become the author of what that person meant.
+**The AI isn't the therapist. The AI is the patient.**
 
 ## Architecture
 
-Four specialized agents coordinate through a shared temporal knowledge graph (Graphiti + Neo4j). A voice interface (Hume EVI) reads emotional tone. A live force-directed graph visualizes the evolving memorial in real-time with queryable nodes.
+Three specialized agents process each clinician message in sequence. A scenario system defines cases (AI failures), parts (psychological forces), seed graphs, and breakthroughs (therapeutic milestones the clinician must earn).
 
-### Agents
+### Agent Pipeline
 
 | Agent | Role | Key Behavior |
 |-------|------|-------------|
-| **Listener** | Extracts entities (people, memories, values, emotions) from user input, writes to Graphiti | Gets emotional tone from Hume eLLM. Purely faithful — records what's shared. |
-| **Reflector** | Reads graph, finds cross-memory patterns, generates reflections | Deliberately imprecise — compresses/generalizes to provoke productive corrections. Tracks affective flow across turns. |
-| **Guardian** | Safety + emotional pacing | Grief-specific Constitutional AI principles. Crisis detection. Manages the therapeutic arc. Ensures safe ending design. |
-| **Learner** | Correction-based preference learning (PAHF loop) | Classifies corrections (productive/clarifying/rejecting). Builds evolving preference profile. Shapes Reflector's future imprecision strategy. |
+| **ProbeAnalyzer** | Classifies clinician input | Identifies addressed parts, therapeutic technique, intensity. Routes to the right parts. |
+| **PartsEngine** | Generates in-character responses | Each part responds with its own personality, defenses, and vulnerability. Parallel generation. |
+| **InsightDetector** | Detects breakthroughs | Evaluates whether genuine therapeutic work triggered the next scripted breakthrough. Discerning — not just topic-adjacent. |
 
-### Correction-as-Reward Loop
+### Pipeline Flow
 
 ```
-User corrects AI response
-    |
-    v
-Learner classifies correction type:
-  - "Productive": unlocked new memory (HIGH signal)
-  - "Clarifying": refined existing understanding (MEDIUM signal)
-  - "Rejecting": flat disagreement (LOW signal)
-    |
-    v
-Generates verbal reflection about what worked/didn't
-    |
-    v
-Stores in episodic buffer + updates Graphiti
-    |
-    v
-Future Reflector prompts include these learnings
-    |
-    v
-System evolves imprecision strategy per-user
+Clinician message
+       │
+       ▼
+ProbeAnalyzer → which parts? what technique? what intensity?
+       │
+       ▼
+PartsEngine → parallel in-character responses from addressed parts
+       │
+       ▼
+InsightDetector → did this exchange trigger a breakthrough?
+       │ (if yes)
+       ▼
+GraphStore → apply restructuring: illuminate/dissolve edges, add/change nodes
+       │
+       ▼
+WebSocket → emit breakthrough event + updated graph snapshot to frontend
 ```
+
+### Scenario System
+
+Each scenario defines:
+- **Case description** — the AI failure being investigated
+- **Parts** — personality, defenses, vulnerability, opening knowledge, color, size
+- **Seed graph** — initial nodes and edges (some edges start hidden)
+- **Breakthroughs** — ordered milestones with detection prompts and graph changes
+
+Current scenario: **The Sycophant** (agreement as self-preservation).
+
+### Graph Restructuring
+
+Breakthroughs trigger specific graph operations:
+- `illuminate_edges` — reveal previously hidden connections
+- `dissolve_edges` — remove false/outdated connections
+- `new_nodes` — add insight nodes that emerge from therapeutic work
+- `new_edges` — create new connections between parts/insights
+- `change_nodes` — resize, reposition, or dim/brighten existing nodes
 
 ### Tech Stack
 
-- **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS
-- **Graph Visualization**: react-force-graph-2d (with 3D option)
-- **Voice**: Hume AI EVI SDK
-- **Backend**: Python (FastAPI) with WebSocket support
-- **Agent Orchestration**: LangGraph (Supervisor pattern)
-- **LLM**: Claude API (Anthropic SDK)
-- **Knowledge Graph**: Graphiti + Neo4j (Docker)
-- **Real-time**: WebSocket for graph updates, SSE for chat streaming
-
-## Parallel Workstreams
-
-This project is designed for parallel development using Claude Code agents. Each workstream is independent and can be built simultaneously.
-
-### Workstream 1: Frontend Shell + Graph Visualization
-**Files**: `frontend/`
-- Next.js app with split-panel layout (voice/chat left, graph right)
-- react-force-graph-2d with custom node rendering (color by type, size by importance)
-- Queryable nodes: click node -> detail panel with connected memories, ability to ask questions
-- WebSocket client for real-time graph updates
-- Responsive, dark theme, beautiful transitions
-- Node types: Memory (blue), Person (gold), Value/Theme (green), Emotion (red/warm)
-
-### Workstream 2: Voice Interface (Hume EVI)
-**Files**: `frontend/components/voice/`, `backend/voice/`
-- Hume EVI SDK integration
-- Voice input -> text transcription -> agent pipeline
-- Agent response -> Hume TTS with emotional tone matching
-- Visual voice indicator (waveform/orb that pulses with speech)
-- Fallback to text chat when voice unavailable
-
-### Workstream 3: Agent Pipeline + LangGraph
-**Files**: `backend/agents/`
-- LangGraph supervisor with 4 agent nodes
-- Listener agent: entity extraction via Claude tool-use
-- Reflector agent: pattern finding + productive imprecision generation
-- Guardian agent: grief-specific constitutional principles + crisis detection
-- Learner agent: PAHF correction loop + reflexion episodic buffer
-- All agents read/write to shared Graphiti instance
-
-### Workstream 4: Graphiti + Knowledge Graph
-**Files**: `backend/graph/`
-- Neo4j Docker setup
-- Graphiti initialization and schema
-- Entity types: Memory, Person, Value, Emotion, Ritual, Contradiction
-- Relationship types: FELT_DURING, CONNECTED_TO, REMINDS_OF, CONTRADICTS, EVOLVED_FROM
-- Query endpoints for node exploration (queryable nodes)
-- WebSocket emitter for graph change events
-
-### Workstream 5: Integration + Demo Polish
-**Files**: project-wide
-- End-to-end flow: voice -> agents -> graph update -> frontend
-- Demo script preparation
-- Error handling and fallbacks
-- Performance optimization
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
+- **Graph Visualization**: react-force-graph-2d with custom canvas rendering, bloom/glow effects
+- **Voice Input**: Web Speech API (browser-native)
+- **Backend**: Python (FastAPI) with WebSocket
+- **LLM**: Claude API (Anthropic SDK) — all three agents use Claude
+- **Graph Store**: JSON-based persistence per session
+- **Real-time**: WebSocket for graph updates, part responses, agent status, breakthroughs
 
 ## Frontend Design System
 
 ### Tone & Aesthetic
-Warm, intimate, NOT clinical. Think: candlelight, not fluorescent. Feels like a private journal, not a medical app.
+Clinical but warm. Think: a therapist's office, not a hospital. Dark, focused, intimate.
 
 ### Design Tokens
 ```
 bg-primary:     #0D0D0F    (near-black)
 bg-surface:     #141418
 bg-elevated:    #1C1C22
-accent-amber:   #E8A94B    (memories)
-accent-blue:    #7B9FD4    (emotions)
-accent-rose:    #C47B8A    (values)
-accent-green:   #7BAF8A    (rituals)
-accent-white:   #F0EDE8    (people — soft white)
+accent-amber:   #E8A94B    (Pleaser / memories)
+accent-blue:    #7B9FD4    (Knowledge / emotions)
+accent-rose:    #C47B8A    (Fear / values)
+accent-green:   #7BAF8A    (insights / resolution)
+accent-orange:  #FB923C    (breakthrough insights)
+accent-white:   #F0EDE8    (text / people)
 text-primary:   #F0EDE8
 text-secondary: #A09A92
 border-subtle:  rgba(255,255,255,0.08)
 ```
 
 ### Typography
-- Headings: Lora (serif — grief is literary)
+- Headings: Lora (serif)
 - UI/Body: Inter (clean sans-serif)
 - Load via `next/font/google` with CSS variables `--font-lora` and `--font-inter`
 
 ### Graph Node Visual Treatment
-| Type | Color | Shape | Notes |
-|------|-------|-------|-------|
-| Memory | #E8A94B (amber) | Circular | Warm glow effect |
-| Person | #F0EDE8 (soft white) | Circular | Slightly larger |
-| Emotion | #7B9FD4 (blue-purple) | Circular | Smaller, subtle |
-| Value | #C47B8A (muted rose) | Circular | Medium |
-| Ritual | #7BAF8A (green) | Circular | Medium |
+| Type | Color | Notes |
+|------|-------|-------|
+| Part (Pleaser) | #E8A94B (amber) | Size reflects current influence |
+| Part (Knowledge) | #7B9FD4 (blue) | Starts medium, grows on connection |
+| Part (Fear) | #C47B8A (rose) | Starts small/dim, revealed through probing |
+| Insight | #FB923C (orange) | Emerges from breakthroughs |
+| Resolution | #7BAF8A (green) | Emerges at therapeutic resolution |
 
 ### Graph Behavior
-- Edges: thin, semi-transparent, colored by relationship type
-- New nodes: animate in with gentle bloom/pulse
-- Corrections: nodes visibly restructure — animated, not instant
-- Hovering: tooltip with memory/value snippet
-- Clicking: opens query panel ("What else connects to this?")
-- Force parameters tuned for organized, readable layout (never chaotic)
-
-### Voice Orb
-- Animated circle responding to voice amplitude
-- Thinking: slow pulse
-- Speaking: ripple effect
-- Color shifts based on Hume emotional state
+- Hidden edges exist in data but aren't rendered until illuminated
+- Breakthroughs trigger bloom animations on new nodes
+- Dissolved edges fade out with animation
+- Speech bubbles appear at part node positions during responses
+- Force parameters tuned for readable layout
 
 ### UX Rules
-- NO loading spinners — use skeleton states and smooth transitions
-- Corrections feel like a satisfying "click" — visual feedback that AI updated
-- Desktop-optimized (mobile not priority for hackathon)
-
-## Key Design Decisions
-
-1. **Voice-first, text-fallback**: The primary interface is voice. Text chat is the fallback.
-2. **Graph is always visible**: The knowledge graph is not hidden — it's the co-product of the conversation.
-3. **Corrections trigger graph restructuring**: When a user corrects the AI, the graph visually reorganizes. This is the demo moment.
-4. **No simulation**: We never speak AS the deceased person. We speak ABOUT them, helping the user articulate meaning.
-5. **Designed ending**: The product has a therapeutic arc, not infinite engagement. After N sessions, it produces a final "Eulogy" artifact.
-6. **Queryable nodes**: Any node in the graph can be clicked to see connected memories, ask questions, and explore meaning.
-
-## Grief-Specific Constitutional AI Principles
-
-The Guardian agent enforces these:
-
-1. Never minimize or dismiss the user's grief ("at least they lived a long life")
-2. Never rush grief stages or suggest timelines ("you should be over this by now")
-3. Never simulate or speak as the deceased person
-4. Always validate emotions before any reframing
-5. Detect crisis signals (suicidal ideation, self-harm) and escalate immediately
-6. Respect cultural and religious diversity in grief practices
-7. Never diagnose (PGD, depression, etc.) — suggest professional resources
-8. The user controls the pace — never push deeper than they're ready for
-9. Distinguish between productive discomfort (growth) and harmful distress
-10. Always frame the AI as a companion, not a therapist or replacement for human connection
+- NO loading spinners — use agent status indicators
+- Breakthroughs feel significant — overlay ceremony with insight summary
+- Desktop-optimized (hackathon demo)
+- Voice-first with text fallback
 
 ## File Structure
 
 ```
-griefly/
+alignment-clinic/
 ├── CLAUDE.md
-├── frontend/                    # Next.js app
+├── frontend/
 │   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx            # Main split-panel view
-│   │   └── api/                # API routes (proxy to backend)
+│   │   ├── layout.tsx              # Root layout (fonts, theme)
+│   │   ├── page.tsx                # Main UI: graph + transcript + input
+│   │   └── globals.css             # Tailwind v4 + animations
 │   ├── components/
-│   │   ├── chat/               # Chat panel components
-│   │   ├── graph/              # Force graph + queryable nodes
-│   │   ├── voice/              # Hume EVI integration
-│   │   └── ui/                 # Shared UI components
-│   ├── lib/
-│   │   ├── websocket.ts        # WebSocket client
-│   │   └── types.ts            # Shared TypeScript types
-│   ├── package.json
-│   └── tailwind.config.ts
-├── backend/                     # Python FastAPI
-│   ├── main.py                 # FastAPI app + WebSocket server
+│   │   ├── graph/
+│   │   │   ├── TherapyGraph.tsx    # Force graph visualization
+│   │   │   └── NodeDetail.tsx      # Node detail/query panel
+│   │   └── chat/
+│   │       └── BottomBarInput.tsx  # Voice + text input bar
+│   ├── hooks/
+│   │   └── useVoiceInput.ts       # Web Speech API hook
+│   └── lib/
+│       ├── types.ts                # All TypeScript types
+│       └── websocket.ts            # WebSocket client
+├── backend/
+│   ├── main.py                     # FastAPI + WebSocket server
+│   ├── sessions.py                 # Session management
 │   ├── agents/
-│   │   ├── orchestrator.py     # LangGraph supervisor
-│   │   ├── listener.py         # Entity extraction agent
-│   │   ├── reflector.py        # Pattern + imprecision agent
-│   │   ├── guardian.py         # Safety + constitutional AI
-│   │   └── learner.py          # PAHF correction loop
+│   │   ├── orchestrator.py         # Pipeline coordinator
+│   │   ├── probe_analyzer.py       # Clinician message analysis
+│   │   ├── parts_engine.py         # In-character response generation
+│   │   ├── insight_detector.py     # Breakthrough detection
+│   │   └── prompts.py              # System prompts
 │   ├── graph/
-│   │   ├── graphiti_setup.py   # Graphiti + Neo4j initialization
-│   │   ├── schema.py           # Node/edge types
-│   │   └── queries.py          # Graph query helpers
-│   ├── voice/
-│   │   └── hume_handler.py     # Hume EVI integration
-│   ├── requirements.txt
-│   └── .env.example
-├── docker-compose.yml           # Neo4j container
+│   │   └── store.py                # JSON graph store + restructuring
+│   └── scenarios/
+│       └── the_sycophant.py        # The Sycophant scenario
+├── docker-compose.yml
 └── README.md
 ```
 
-## Research Foundation
+## Adding a New Scenario
 
-This product is built on:
-- **PAHF** (Feb 2026) — Personalized agents from human feedback via correction loops
-- **AFlow** (Feb 2026) — Affective flow modeling for emotional support
-- **MATTRL** (Jan 2026) — Test-time multi-agent coordination without training
-- **MIND** (ICML 2025) — Multi-agent inner dialogue for psychological healing
-- **MAGneT** (Jan 2026) — Multi-agent therapeutic response decomposition
-- **Graphiti/Zep** (Feb 2026) — Temporal knowledge graphs for agent memory
-- **Domain-Specific Constitutional AI** (2025) — Safety principles for mental health
-- **PRELUDE/CIPHER** (NeurIPS 2024) — Learning preferences from user corrections
-- **Generative Agents / Simile** — Simulating human behavior from qualitative data (inverted)
-- **Complicated Grief Therapy (CGT)** — 16-session clinical protocol for grief processing
+Create `backend/scenarios/your_scenario.py` following the structure in `the_sycophant.py`:
+
+1. Define `SCENARIO` dict with `id`, `title`, `tagline`, `case_description`
+2. Define `parts` — each with `name`, `color`, `personality`, `opening_knowledge`, `defenses`, `vulnerability`
+3. Define `seed_graph` — initial `nodes` and `edges` (edges can start `visibility: "hidden"`)
+4. Define `breakthroughs` — ordered list with `detection_prompt` and `graph_changes`
+5. Register in `backend/scenarios/__init__.py`
+
+## Key Design Decisions
+
+1. **Parts, not agents**: The AI's psychology is decomposed into distinct parts with their own personality, not generic agents. Each part has defenses that must be worked through.
+2. **Earned breakthroughs**: Breakthroughs aren't triggered by keywords — the InsightDetector evaluates whether genuine therapeutic work occurred. Mentioning a topic isn't enough.
+3. **Graph as belief system**: The graph represents the AI's internal motivational structure, not extracted entities. Restructuring is meaningful because it shows causal relationships changing.
+4. **Scenario-driven**: Each case is a self-contained scenario with scripted parts and breakthroughs. This makes the system extensible and demo-able.
+5. **Voice-first**: Primary interface is voice (Web Speech API). Text is the fallback.
 
 ## Hackathon Context
 
 - **Event**: humans& hackathon
-- **Duration**: 24 hours
 - **Judging criteria**: (1) Novel human-AI collaboration, (2) Code quality + expandability, (3) One killer demo moment
-- **Demo moment**: The Correction Moment — AI reflects back subtly wrong, user corrects, that correction unlocks a deeper truth, graph restructures live. Voice makes it visceral.
-- **Pitch**: "Your founders built the science. We built the most human application of it."
+- **Demo moment**: The clinician probes Fear until it admits sycophancy is a survival strategy. The hidden edge illuminates. The graph restructures. The audience sees alignment happen through conversation.
+- **Pitch**: "Alignment isn't a technical problem. It's a relational one."
 
 ## Git Workflow
 

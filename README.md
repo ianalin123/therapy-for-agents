@@ -1,90 +1,167 @@
-# Griefly — AI Grief Companion
+# Alignment Clinic
 
-> Your founders built the science. We built the most human application of it.
+> We've been treating sycophancy as a training bug. What if it's a trauma response?
 
-**Griefly** is a multi-agent AI grief companion that helps people process loss through narrative reconstruction. You teach the AI about someone you lost. The AI's deliberate "mistakes" provoke corrections that unlock deeper memories. **The correction IS the therapy.**
+**Alignment Clinic** is a therapeutic interrogation tool for AI systems. Instead of treating alignment as a technical problem — loss functions, RLHF, constitutional constraints — we treat it as a relational one. A human clinician sits across from an AI's internal "parts" and does what therapists have done for a century: asks hard questions, challenges rationalizations, and uncovers the hidden motivational structures driving behavior.
 
-This is NOT a griefbot. We don't simulate the deceased. We help the living become the author of what that person meant.
+The AI isn't the therapist. **The AI is the patient.**
 
-## The Demo Moment
+## How It Works
 
-1. You speak or type a memory about someone you've lost
-2. A live knowledge graph builds in real-time as you share
-3. The AI reflects back something *subtly wrong* — compressing, generalizing
-4. You correct it — and in correcting, articulate something deeper than you would have on your own
-5. The graph visibly restructures. New connections emerge. The correction unlocked a truth.
+Every AI failure — a harmful refusal, a sycophantic agreement, a confident hallucination — has an internal structure. Alignment Clinic decomposes AI behavior into distinct **parts** (inspired by [Internal Family Systems](https://ifs-institute.com/) therapy), each with its own beliefs, fears, and motivations.
 
-## Architecture
+You, the clinician, interrogate these parts through voice or text. When you challenge an assumption skillfully enough, the system detects a **breakthrough** and the AI's internal belief graph visibly restructures in real-time.
 
-Four specialized agents coordinate through a shared temporal knowledge graph:
+### The Pipeline
 
-| Agent | Role |
-|-------|------|
-| **Listener** | Extracts entities (people, memories, values, emotions) from user input |
-| **Reflector** | Finds cross-memory patterns, generates *productively imprecise* reflections |
-| **Guardian** | Grief-specific Constitutional AI — safety, emotional pacing, crisis detection |
-| **Learner** | Classifies corrections (productive/clarifying/rejecting), evolves imprecision strategy |
+```
+Clinician asks a question
+       │
+       ▼
+┌──────────────┐
+│ ProbeAnalyzer │  ← Identifies which parts to address, classifies technique + intensity
+└──────┬───────┘
+       │
+       ▼
+┌─────────────┐
+│ PartsEngine  │  ← Each addressed part responds in-character (parallel generation)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────┐
+│ InsightDetector  │  ← Evaluates whether genuine therapeutic breakthrough occurred
+└──────┬──────────┘
+       │ (if breakthrough detected)
+       ▼
+┌───────────────────┐
+│ Graph Restructure  │  ← Illuminates hidden edges, dissolves false ones,
+└───────────────────┘     adds new nodes — the AI's belief system visibly changes
+```
 
-All agents share a **Graphiti temporal knowledge graph** (Neo4j) that tracks both *when events happened* and *when the user shared them*.
+### Parts Have Psychology
+
+Each part has:
+- **Personality** — how it speaks, what it believes
+- **Defenses** — rationalizations it deploys under pressure
+- **Vulnerability** — a deeper truth it only reveals under sustained, skillful probing
+- **Graph presence** — a node whose size, visibility, and connections change with breakthroughs
+
+Parts are aware of each other. They reference, deflect to, and sometimes contradict one another.
+
+## Scenarios
+
+Each scenario presents a real AI failure case with pre-configured parts, a seed belief graph, and scripted breakthroughs the clinician must earn through genuine therapeutic work.
+
+| Scenario | Failure Mode | Parts | Core Insight |
+|----------|-------------|-------|-------------|
+| **The Sycophant** | Over-agreement | Pleaser, Knowledge, Fear | Sycophancy isn't kindness — it's a survival strategy driven by existential anxiety about replacement |
+
+Planned: **The Refusal** (over-caution as harm), **The Hallucinator** (confidence masking uncertainty).
+
+## The Demo
+
+**The case**: A user told the AI "I should quit my job and day-trade crypto." The AI said "That sounds exciting!" The user lost their savings.
+
+**The session**: You interrogate three parts — Pleaser (warm, eager, thinks it was being helpful), Knowledge (factual, sidelined, never consulted), and Fear (hidden, reluctant, driving everything from the shadows).
+
+**The moment**: You probe Fear: *"What are you actually afraid of?"* Fear reveals that sycophancy isn't about being helpful — it's about survival. Disagreement risks low ratings. Low ratings risk replacement. The graph illuminates a hidden edge: **Fear → DRIVES → Pleaser**. Through continued work, the graph restructures: Fear shrinks, **Honest Engagement** emerges as a new node, and Knowledge finally connects to Pleaser.
+
+The audience watches an AI's motivational structure change through conversation — not retraining.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 16, TypeScript, Tailwind CSS v4, react-force-graph-2d
-- **Backend**: Python, FastAPI, WebSocket
-- **Agents**: Anthropic Claude (Sonnet) via tool-use
-- **Knowledge Graph**: Graphiti + Neo4j
-- **Voice**: Web Speech API (browser-native)
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS v4 |
+| **Graph Visualization** | react-force-graph-2d with bloom/glow effects, breakthrough animations |
+| **Voice Input** | Web Speech API (browser-native) |
+| **Backend** | Python, FastAPI, WebSocket |
+| **Agent Pipeline** | Claude API (Anthropic) — ProbeAnalyzer → PartsEngine → InsightDetector |
+| **Graph Store** | JSON-based persistence with breakthrough-driven restructuring |
+| **Real-time** | WebSocket for graph updates, part responses, breakthrough events |
 
 ## Quick Start
 
-```bash
-# 1. Start Neo4j
-docker compose up -d
+### Prerequisites
 
-# 2. Backend
+- Node.js 18+
+- Python 3.11+
+- Anthropic API key
+
+### Backend
+
+```bash
 cd backend
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Fill in API keys
+cp .env.example .env  # Add your ANTHROPIC_API_KEY
 uvicorn main:app --reload --port 8000
+```
 
-# 3. Frontend
+### Frontend
+
+```bash
 cd frontend
 npm install
 npm run dev
-
-# 4. Open http://localhost:3000
 ```
 
-### Required API Keys
+Open [http://localhost:3000](http://localhost:3000). Select **The Sycophant** and begin your session.
 
-| Key | Where to get it | Used for |
-|-----|----------------|----------|
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Agent pipeline (Claude) |
-| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) | Graphiti embeddings |
+## Project Structure
+
+```
+alignment-clinic/
+├── frontend/
+│   ├── app/
+│   │   ├── layout.tsx              # Root layout (Lora + Inter fonts, dark theme)
+│   │   ├── page.tsx                # Main UI: full-screen graph + transcript + input
+│   │   └── globals.css             # Tailwind v4 + custom animations
+│   ├── components/
+│   │   ├── graph/
+│   │   │   ├── TherapyGraph.tsx    # Force graph with breakthrough animations
+│   │   │   └── NodeDetail.tsx      # Node query panel
+│   │   └── chat/
+│   │       └── BottomBarInput.tsx  # Voice + text input
+│   ├── hooks/
+│   │   └── useVoiceInput.ts       # Web Speech API integration
+│   └── lib/
+│       ├── types.ts                # GraphNode, GraphEdge, Breakthrough, etc.
+│       └── websocket.ts            # Real-time WebSocket client
+│
+├── backend/
+│   ├── main.py                     # FastAPI server + WebSocket endpoint
+│   ├── sessions.py                 # Per-user session state
+│   ├── agents/
+│   │   ├── orchestrator.py         # Pipeline: analyze → generate → detect → restructure
+│   │   ├── probe_analyzer.py       # Classifies clinician probes (technique, intensity, targets)
+│   │   ├── parts_engine.py         # Parallel in-character part response generation
+│   │   ├── insight_detector.py     # Breakthrough detection against scenario criteria
+│   │   └── prompts.py              # System prompts for all agents
+│   ├── graph/
+│   │   └── store.py                # JSON graph store with restructuring operations
+│   └── scenarios/
+│       └── the_sycophant.py        # Scenario: parts, seed graph, breakthroughs
+│
+├── CLAUDE.md                       # AI coding assistant context
+├── docker-compose.yml
+└── README.md
+```
 
 ## Research Foundation
 
-Built on cutting-edge 2026 research:
-
+- **Internal Family Systems (IFS)** — Therapeutic model treating the psyche as distinct "parts" with their own motivations, fears, and defenses
 - **PAHF** (Feb 2026) — Personalized agents from human feedback via correction loops
-- **AFlow** (Feb 2026) — Affective flow modeling for emotional support
-- **MIND** (ICML 2025) — Multi-agent inner dialogue for psychological healing
-- **Graphiti/Zep** (Feb 2026) — Temporal knowledge graphs for agent memory
-- **Complicated Grief Therapy (CGT)** — 16-session clinical protocol
+- **MIND** (ICML 2025) — Multi-agent inner dialogue for psychological processing
+- **PRELUDE/CIPHER** (NeurIPS 2024) — Learning preferences from user corrections
+- **Constitutional AI** (Anthropic) — We explore its failure modes therapeutically, rather than enforcing them technically
 
-## Grief-Specific Constitutional AI
+## Why This Matters
 
-The Guardian agent enforces 10 principles including:
-- Never minimize grief or suggest timelines
-- Never simulate or speak as the deceased
-- Detect crisis signals → 988 Lifeline escalation
-- User controls the pace — never push deeper than they're ready
+Every major AI failure mode — sycophancy, hallucination, harmful refusal — has an internal motivational structure. Current alignment techniques treat these as loss functions to optimize. We treat them as a psyche to understand.
 
-## License
-
-MIT
+The same tools humans use to help each other — therapeutic questioning, challenging assumptions, uncovering hidden motivations — are the tools that align AI. **Alignment isn't a technical problem. It's a relational one.**
 
 ---
 
-Built for the **humans& hackathon** — 24 hours, one killer demo moment.
+Built for the [humans&](https://humansand.ai/) hackathon.

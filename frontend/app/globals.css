@@ -5,9 +5,8 @@
 @theme {
   --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --animate-orb-breathe: orb-breathe 4s ease-in-out infinite;
-  --animate-orb-ring: orb-ring 4s ease-in-out infinite;
-  --animate-correction-in: correction-in 300ms ease-out forwards;
+  --animate-bubble-in: bubble-in 300ms ease-out forwards;
+  --animate-breakthrough-in: breakthrough-in 500ms ease-out forwards;
 }
 
 @layer base {
@@ -16,7 +15,6 @@
     overflow: hidden;
   }
 
-  /* Scrollbar styling */
   ::-webkit-scrollbar {
     width: 6px;
   }
@@ -35,29 +33,19 @@
   }
 }
 
-/* Focus styling — needs to beat Tailwind so stays unlayered */
 input:focus {
   border-color: rgba(232, 169, 75, 0.4) !important;
 }
 
-@keyframes correction-in {
-  0% { opacity: 0; transform: scale(0.95); }
-  100% { opacity: 1; transform: scale(1); }
+@keyframes bubble-in {
+  0% { opacity: 0; transform: translate(-50%, -90%) scale(0.8); }
+  100% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
 }
 
-@keyframes correction-pulse {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-@keyframes orb-breathe {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.08); }
-}
-
-@keyframes orb-ring {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.15); }
+@keyframes breakthrough-in {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 1; }
 }
 
 @keyframes node-bloom {
@@ -66,9 +54,7 @@ input:focus {
   100% { transform: scale(1); opacity: 1; }
 }
 
-@keyframes toast-fade {
-  0% { opacity: 0; transform: translateY(8px); }
-  15% { opacity: 1; transform: translateY(0); }
-  85% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-4px); }
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
 }

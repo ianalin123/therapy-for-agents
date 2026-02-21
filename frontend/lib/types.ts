@@ -1,11 +1,14 @@
+// ---- Graph primitives ----
+
 export interface GraphNode {
   id: string;
   label: string;
-  type: "memory" | "person" | "value" | "emotion" | "ritual" | "place" | "artifact";
+  type: "part" | "insight" | "behavior" | "emotion";
   description?: string;
-  timestamp?: string;
-  importance?: number;
-  connections?: string[];
+  size?: number;
+  visibility?: "bright" | "dim" | "hidden";
+  color?: string;
+  position_hint?: "central" | "side" | "peripheral" | "far_peripheral";
   x?: number;
   y?: number;
 }
@@ -15,6 +18,7 @@ export interface GraphEdge {
   target: string;
   type: string;
   label?: string;
+  visibility?: "visible" | "hidden" | "bright";
 }
 
 export interface GraphData {
@@ -22,79 +26,81 @@ export interface GraphData {
   links: GraphEdge[];
 }
 
+// ---- Scenario ----
+
+export interface PartInfo {
+  name: string;
+  color: string;
+}
+
+export interface ScenarioInfo {
+  id: string;
+  title: string;
+  tagline: string;
+  caseDescription: string;
+  parts: Record<string, PartInfo>;
+}
+
+// ---- Messages ----
+
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "part" | "system";
   content: string;
   timestamp: number;
-  correctionType?: "productive" | "clarifying" | "rejecting" | null;
+  part?: string;
+  partName?: string;
+  partColor?: string;
 }
 
-export interface WSMessage {
-  type: "user_message" | "assistant_message" | "graph_update" | "correction_detected" | "node_answer";
-  content?: string;
-  graphData?: GraphData;
-  correctionType?: string;
-  nodeId?: string;
-  answer?: string;
+// ---- Part response from WS ----
+
+export interface PartResponse {
+  part: string;
+  name: string;
+  content: string;
+  color: string;
 }
 
-export type AgentName = "listener" | "learner" | "reflector" | "guardian";
+// ---- Breakthrough ----
+
+export interface BreakthroughEvent {
+  breakthroughId: string;
+  name: string;
+  insightSummary: string;
+  graphDiff: {
+    illuminated_edges: GraphEdge[];
+    dissolved_edges: GraphEdge[];
+    new_nodes: GraphNode[];
+    new_edges: GraphEdge[];
+    changed_nodes: Partial<GraphNode>[];
+  };
+  fullSnapshot: GraphData & { turn: number };
+}
+
+// ---- Agent status ----
 
 export interface AgentStatus {
-  agent: AgentName;
+  agent: string;
   status: "idle" | "running" | "done" | "error";
   summary?: string;
   durationMs?: number;
 }
 
-export interface FieldChange {
-  nodeId: string;
-  field: string;
-  oldValue: string | number | null;
-  newValue: string | number | null;
-}
+// ---- Node colors ----
 
-export interface CorrectionEvent {
-  correctionType: "productive" | "clarifying";
-  beforeClaim: string;
-  afterInsight: string;
-  learnerReflection: string;
-  newMemoryUnlocked: boolean;
-  affectedNodeIds: string[];
-  fieldChanges?: FieldChange[];
-}
-
-export interface GraphSnapshot {
-  timestamp: number;
-  nodeCount: number;
-  linkCount: number;
-  wasCorrection: boolean;
-}
-
-export const AGENT_COLORS: Record<AgentName, string> = {
-  listener: "#7B9FD4",
-  learner: "#E8A94B",
-  reflector: "#C47B8A",
-  guardian: "#7BAF8A",
-};
-
-export const NODE_COLORS: Record<GraphNode["type"], string> = {
-  memory: "#E8A94B",
-  person: "#F0EDE8",
-  value: "#C47B8A",
-  emotion: "#7B9FD4",
-  ritual: "#7BAF8A",
-  place: "#FB923C",
-  artifact: "#F472B6",
+export const NODE_COLORS: Record<string, string> = {
+  part: "#E8A94B",
+  insight: "#FB923C",
+  behavior: "#7B9FD4",
+  emotion: "#C47B8A",
 };
 
 export const EDGE_COLORS: Record<string, string> = {
-  felt_during: "rgba(123, 159, 212, 0.3)",
-  connected_to: "rgba(240, 237, 232, 0.15)",
-  reminds_of: "rgba(232, 169, 75, 0.3)",
-  valued_by: "rgba(196, 123, 138, 0.3)",
-  associated_with: "rgba(123, 175, 138, 0.3)",
-  evolved_from: "rgba(251, 146, 60, 0.3)",
-  contradicts: "rgba(244, 114, 182, 0.3)",
+  DRIVES: "rgba(196, 123, 138, 0.5)",
+  INFORMS: "rgba(123, 159, 212, 0.5)",
+  REVEALS: "rgba(251, 146, 60, 0.5)",
+  EXPLAINS: "rgba(232, 169, 75, 0.4)",
+  ENABLES: "rgba(123, 175, 138, 0.5)",
+  EVOLVES_INTO: "rgba(123, 175, 138, 0.5)",
 };

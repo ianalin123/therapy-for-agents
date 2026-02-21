@@ -5,6 +5,7 @@ Reflector, Guardian) or Graphiti fails, the pipeline continues and
 always returns at least one graph node so the frontend can transition.
 """
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from typing import Any
@@ -63,15 +64,17 @@ async def process_message(
     # Ingest into Graphiti if available
     # ------------------------------------------------------------------
     if graphiti_client and extraction.get("entities"):
-        try:
-            await graphiti_client.add_episode(
-                name=f"memory_{len(conversation_history)}",
-                episode_body=f"User shared: {user_message}",
-                source_description="user_conversation",
-                reference_time=datetime.now(timezone.utc),
-            )
-        except Exception as e:
-            print(f"Graphiti ingestion error: {e}")
+        async def _ingest():
+            try:
+                await graphiti_client.add_episode(
+                    name=f"memory_{len(conversation_history)}",
+                    episode_body=f"User shared: {user_message}",
+                    source_description="user_conversation",
+                    reference_time=datetime.now(timezone.utc),
+                )
+            except Exception as e:
+                print(f"Graphiti ingestion error: {e}")
+        asyncio.create_task(_ingest())
 
     # Transform entities for frontend graph
     for entity in extraction.get("entities", []):

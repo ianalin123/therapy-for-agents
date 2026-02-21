@@ -5,6 +5,8 @@
 @theme {
   --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --animate-orb-breathe: orb-breathe 4s ease-in-out infinite;
+  --animate-orb-ring: orb-ring 4s ease-in-out infinite;
 }
 
 @layer base {
@@ -40,4 +42,14 @@ input:focus {
 @keyframes correction-pulse {
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
+}
+
+@keyframes orb-breathe {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.08); }
+}
+
+@keyframes orb-ring {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
 }

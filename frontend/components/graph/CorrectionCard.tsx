@@ -13,13 +13,17 @@ export function CorrectionCard({ correction, onDismiss }: CorrectionCardProps) {
 
   useEffect(() => {
     if (!correction) return;
-    timeoutRef.current = setTimeout(onDismiss, 6000);
+    timeoutRef.current = setTimeout(onDismiss, 8000);
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [correction, onDismiss]);
 
   if (!correction) return null;
+
+  const fieldChanges = correction.fieldChanges?.filter(
+    (c) => c.field !== "id" && c.field !== "type"
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -35,7 +39,7 @@ export function CorrectionCard({ correction, onDismiss }: CorrectionCardProps) {
           e.stopPropagation();
           onDismiss();
         }}
-        className="relative w-[340px] rounded-2xl border border-amber-500/20 bg-[rgba(20,20,24,0.95)] p-4 shadow-xl backdrop-blur-xl animate-correction-in"
+        className="relative w-[380px] max-h-[70vh] overflow-y-auto rounded-2xl border border-amber-500/20 bg-[rgba(20,20,24,0.95)] p-4 shadow-xl backdrop-blur-xl animate-correction-in"
       >
         <button
           type="button"
@@ -50,17 +54,47 @@ export function CorrectionCard({ correction, onDismiss }: CorrectionCardProps) {
         <h3 className="text-sm font-medium text-[#E8A94B] drop-shadow-[0_0_8px_rgba(232,169,75,0.4)] pr-6">
           Understanding Updated
         </h3>
+
+        {/* Before / After section */}
         <p className="mt-2 text-sm text-[#A09A92] line-through">
           {correction.beforeClaim}
         </p>
         <div className="my-2 flex items-center gap-2">
           <div className="h-px flex-1 bg-amber-500/20" />
-          <span className="text-amber-500/60 text-xs">↓</span>
+          <span className="text-amber-500/60 text-xs">&darr;</span>
           <div className="h-px flex-1 bg-amber-500/20" />
         </div>
         <p className="text-sm text-[#F0EDE8] border-l-2 border-[#E8A94B]/50 pl-3">
           {correction.afterInsight}
         </p>
+
+        {/* Field-level diffs */}
+        {fieldChanges && fieldChanges.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            <p className="text-xs font-medium text-[#A09A92] uppercase tracking-wider">
+              Graph Changes
+            </p>
+            {fieldChanges.map((change, i) => (
+              <div
+                key={`${change.nodeId}-${change.field}-${i}`}
+                className="rounded-lg bg-white/5 px-3 py-2 text-xs"
+              >
+                <span className="text-[#A09A92]">{change.nodeId}</span>
+                <span className="text-[#A09A92] mx-1">&middot;</span>
+                <span className="text-[#7B9FD4]">{change.field}</span>
+                {change.oldValue != null && (
+                  <span className="ml-2 text-red-400/80 line-through">
+                    {String(change.oldValue).slice(0, 60)}
+                  </span>
+                )}
+                <span className="ml-2 text-emerald-400/80">
+                  {String(change.newValue).slice(0, 80)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {correction.learnerReflection && (
           <p className="mt-2 text-xs italic text-[#A09A92]">
             {correction.learnerReflection}

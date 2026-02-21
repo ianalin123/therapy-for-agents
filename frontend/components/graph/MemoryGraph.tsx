@@ -45,8 +45,21 @@ export default function MemoryGraph({ onNodeQuery, correction, onDismissCorrecti
       }
 
       setGraphData((prev) => {
-        const existingNodeIds = new Set(prev.nodes.map((n) => n.id));
-        const newNodes = incomingNodes.filter((n) => !existingNodeIds.has(n.id));
+        const existingById = new Map(prev.nodes.map((n) => [n.id, n]));
+        const updatedNodes = [...prev.nodes];
+        let hadNew = false;
+
+        for (const incoming of incomingNodes) {
+          const existing = existingById.get(incoming.id);
+          if (existing) {
+            Object.assign(existing, incoming);
+          } else {
+            updatedNodes.push(incoming);
+            nodeAddedAtRef.current.set(incoming.id, now);
+            hadNew = true;
+          }
+        }
+
         const existingLinkKeys = new Set(
           prev.links.map((l: any) => `${typeof l.source === "object" ? l.source.id : l.source}-${typeof l.target === "object" ? l.target.id : l.target}`)
         );
@@ -54,16 +67,12 @@ export default function MemoryGraph({ onNodeQuery, correction, onDismissCorrecti
           (l) => !existingLinkKeys.has(`${l.source}-${l.target}`)
         );
 
-        for (const node of newNodes) {
-          nodeAddedAtRef.current.set(node.id, now);
-        }
-
-        if (newNodes.length > 0 && graphRef.current) {
+        if (hadNew && graphRef.current) {
           graphRef.current.d3ReheatSimulation();
         }
 
         const nextData = {
-          nodes: [...prev.nodes, ...newNodes],
+          nodes: updatedNodes,
           links: [...prev.links, ...newLinks],
         };
 

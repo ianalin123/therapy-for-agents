@@ -48,6 +48,13 @@ export interface AgentStatus {
   durationMs?: number;
 }
 
+export interface FieldChange {
+  nodeId: string;
+  field: string;
+  oldValue: string | number | null;
+  newValue: string | number | null;
+}
+
 export interface CorrectionEvent {
   correctionType: "productive" | "clarifying";
   beforeClaim: string;
@@ -55,6 +62,7 @@ export interface CorrectionEvent {
   learnerReflection: string;
   newMemoryUnlocked: boolean;
   affectedNodeIds: string[];
+  fieldChanges?: FieldChange[];
 }
 
 export interface GraphSnapshot {

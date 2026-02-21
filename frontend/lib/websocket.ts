@@ -1,11 +1,5 @@
 type MessageHandler = (data: any) => void;
 
-// #region agent log
-function _dbg(location: string, message: string, data: Record<string, any> = {}, hypothesis = "") {
-  fetch('http://127.0.0.1:7428/ingest/837bf3f5-162e-4382-8587-0ded3961c63b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8d6127'},body:JSON.stringify({sessionId:'8d6127',location,message,data,timestamp:Date.now(),hypothesisId:hypothesis})}).catch(()=>{});
-}
-// #endregion
-
 class GrieflyWebSocket {
   private ws: WebSocket | null = null;
   private handlers: Map<string, MessageHandler[]> = new Map();
@@ -13,9 +7,11 @@ class GrieflyWebSocket {
   private intentionalClose = false;
   private connectGeneration = 0;
   private url: string;
+  private sessionId: string;
 
-  constructor(url: string) {
+  constructor(url: string, sessionId: string = "default") {
     this.url = url;
+    this.sessionId = sessionId;
   }
 
   connect() {
@@ -24,7 +20,6 @@ class GrieflyWebSocket {
       this.reconnectTimer = null;
     }
 
-    // Bump generation so stale onclose handlers become no-ops
     const generation = ++this.connectGeneration;
 
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
@@ -34,26 +29,18 @@ class GrieflyWebSocket {
       this.ws.close();
     }
 
-    // #region agent log
-    _dbg("websocket.ts:connect", "Creating new WebSocket", { url: this.url, generation }, "H1");
-    // #endregion
-    this.ws = new WebSocket(this.url);
+    const sep = this.url.includes("?") ? "&" : "?";
+    this.ws = new WebSocket(`${this.url}${sep}session=${this.sessionId}`);
 
     this.ws.onopen = () => {
       if (generation !== this.connectGeneration) return;
       console.log("[WS] Connected");
-      // #region agent log
-      _dbg("websocket.ts:onopen", "WS opened", { generation }, "H1");
-      // #endregion
     };
 
     this.ws.onmessage = (event) => {
       if (generation !== this.connectGeneration) return;
       try {
         const data = JSON.parse(event.data);
-        // #region agent log
-        _dbg("websocket.ts:onmessage", "Received message", { type: data.type, keys: Object.keys(data) }, "H5");
-        // #endregion
         const handlers = this.handlers.get(data.type) || [];
         handlers.forEach((handler) => handler(data));
         const anyHandlers = this.handlers.get("*") || [];
@@ -64,12 +51,7 @@ class GrieflyWebSocket {
     };
 
     this.ws.onclose = (event) => {
-      // Stale WS — ignore its close event entirely
       if (generation !== this.connectGeneration) return;
-
-      // #region agent log
-      _dbg("websocket.ts:onclose", "WS closed", { code: event.code, reason: event.reason, wasClean: event.wasClean, intentional: this.intentionalClose, generation }, "H1");
-      // #endregion
       if (this.intentionalClose) {
         console.log("[WS] Closed intentionally");
         return;
@@ -80,9 +62,6 @@ class GrieflyWebSocket {
 
     this.ws.onerror = (error) => {
       if (generation !== this.connectGeneration) return;
-      // #region agent log
-      _dbg("websocket.ts:onerror", "WS error event", { generation }, "H1");
-      // #endregion
       console.error("[WS] Error:", error);
     };
   }
@@ -100,32 +79,15 @@ class GrieflyWebSocket {
   }
 
   send(data: any) {
-    // #region agent log
-    _dbg("websocket.ts:send", "Attempting send", { type: data.type, readyState: this.ws?.readyState }, "H5");
-    // #endregion
     if (this.ws?.readyState === WebSocket.OPEN) {
-      console.log("[WS] Sending:", data.type);
       this.ws.send(JSON.stringify(data));
-      // #region agent log
-      _dbg("websocket.ts:send", "Sent successfully", { type: data.type }, "H5");
-      // #endregion
     } else {
-      console.warn("[WS] Not connected, readyState:", this.ws?.readyState, "— retrying in 500ms");
-      // #region agent log
-      _dbg("websocket.ts:send", "NOT connected, will retry", { readyState: this.ws?.readyState }, "H5");
-      // #endregion
+      console.warn("[WS] Not connected, retrying in 500ms");
       setTimeout(() => {
         if (this.ws?.readyState === WebSocket.OPEN) {
-          console.log("[WS] Retry send:", data.type);
           this.ws.send(JSON.stringify(data));
-          // #region agent log
-          _dbg("websocket.ts:send", "Retry send OK", { type: data.type }, "H5");
-          // #endregion
         } else {
-          console.error("[WS] Still not connected, message dropped:", data);
-          // #region agent log
-          _dbg("websocket.ts:send", "MESSAGE DROPPED", { type: data.type, readyState: this.ws?.readyState }, "H5");
-          // #endregion
+          console.error("[WS] Still not connected, message dropped:", data.type);
         }
       }, 500);
     }

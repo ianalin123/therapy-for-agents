@@ -6,6 +6,7 @@ import BottomBarInput from "@/components/chat/BottomBarInput";
 import ChatTranscript from "@/components/chat/ChatTranscript";
 import MemoryGraph from "@/components/graph/MemoryGraph";
 import { AgentPanel } from "@/components/agents/AgentPanel";
+import { Toolbar } from "@/components/ui/Toolbar";
 import { ChatMessage, AgentName, AgentStatus, CorrectionEvent } from "@/lib/types";
 import { getWebSocket } from "@/lib/websocket";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -78,6 +79,7 @@ export default function Home() {
         learnerReflection: data.learnerReflection || "",
         newMemoryUnlocked: data.newMemoryUnlocked || false,
         affectedNodeIds: data.affectedNodeIds || [],
+        fieldChanges: data.fieldChanges || [],
       });
     };
 
@@ -190,13 +192,14 @@ export default function Home() {
           <VoiceOrb mode="widget" isListening={isListening} onClick={toggleListening} />
         </div>
 
-        <div className="absolute top-5 left-20 z-20">
+        <div className="absolute top-5 left-20 z-20 flex items-center gap-4">
           <span
             className="text-sm font-serif tracking-wide"
             style={{ color: "rgba(240, 237, 232, 0.6)" }}
           >
             Griefly
           </span>
+          <Toolbar />
         </div>
 
         <ChatTranscript messages={messages} />

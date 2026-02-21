@@ -188,6 +188,19 @@ async def websocket_endpoint(ws: WebSocket):
             connected_clients.remove(ws)
 
 
+
+@app.post("/demo/seed")
+async def seed_demo():
+    """Pre-populate graph with demo memories for presentation."""
+    from demo.seed_data import get_seed_graph
+    seed = get_seed_graph()
+    await broadcast_graph_update({
+        "type": "graph_update",
+        "graphData": seed,
+    })
+    return {"status": "seeded", "nodes": len(seed["nodes"]), "links": len(seed["links"])}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "graphiti": graphiti_client is not None}

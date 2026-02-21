@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 interface UseVoiceInputOptions {
   onTranscript: (text: string) => void;
@@ -8,65 +8,77 @@ interface UseVoiceInputOptions {
 
 export function useVoiceInput({ onTranscript }: UseVoiceInputOptions) {
   const [isListening, setIsListening] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const onTranscriptRef = useRef(onTranscript);
+  onTranscriptRef.current = onTranscript;
 
-  useEffect(() => {
+  const getRecognition = useCallback(() => {
+    if (recognitionRef.current) return recognitionRef.current;
+
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setIsSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+    if (!SpeechRecognition) return null;
 
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript.trim()) {
-          onTranscript(transcript.trim());
-        }
-        setIsListening(false);
-      };
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
 
-      recognition.onerror = (event: any) => {
-        console.error("[Voice] Error:", event.error);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [onTranscript]);
-
-  const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error("[Voice] Start error:", e);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0]?.[0]?.transcript;
+      if (transcript?.trim()) {
+        onTranscriptRef.current(transcript.trim());
       }
-    }
-  }, [isListening]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
       setIsListening(false);
-    }
-  }, [isListening]);
+    };
+
+    recognition.onerror = (event: any) => {
+      // "aborted" is normal when we call stop()
+      if (event.error !== "aborted") {
+        console.warn("[Voice] Error:", event.error);
+      }
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    return recognition;
+  }, []);
 
   const toggleListening = useCallback(() => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
+    const recognition = getRecognition();
+    if (!recognition) {
+      console.warn("[Voice] Speech recognition not supported in this browser");
+      return;
     }
-  }, [isListening, startListening, stopListening]);
 
-  return { isListening, isSupported, toggleListening, startListening, stopListening };
+    if (isListening) {
+      recognition.abort();
+      setIsListening(false);
+    } else {
+      // Abort any lingering session before starting fresh
+      try { recognition.abort(); } catch {}
+      setTimeout(() => {
+        try {
+          recognition.start();
+          setIsListening(true);
+        } catch (e: any) {
+          console.warn("[Voice] Could not start:", e.message);
+          setIsListening(false);
+        }
+      }, 100);
+    }
+  }, [isListening, getRecognition]);
+
+  const isSupported =
+    typeof window !== "undefined" &&
+    !!(
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition
+    );
+
+  return { isListening, isSupported, toggleListening };
 }

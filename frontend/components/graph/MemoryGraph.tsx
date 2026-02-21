@@ -105,6 +105,7 @@ export default function MemoryGraph({ onNodeQuery }: Props) {
   const nodeCanvasObject = useCallback(
     (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const n = node as GraphNode & { x: number; y: number };
+      if (n.x == null || n.y == null || !isFinite(n.x) || !isFinite(n.y)) return;
       const now = Date.now();
 
       // --- Importance-based sizing ---

@@ -85,25 +85,24 @@ export default function Home() {
         {/* Orb */}
         <VoiceOrb mode="hero" />
 
-        {/* Processing indicator */}
-        {isProcessing && (
-          <div className="mt-8 flex flex-col items-center gap-3 animate-pulse">
-            <div className="flex gap-1.5">
-              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "0ms" }} />
-              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "150ms" }} />
-              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "300ms" }} />
+        {/* Text fallback + loading */}
+        <div className="mt-16 w-80 flex flex-col items-center gap-4">
+          {isProcessing ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex gap-1.5">
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "0ms" }} />
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "150ms" }} />
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "300ms" }} />
+              </div>
+              <p className="text-xs" style={{ color: "#A09A92" }}>Listening to your memory...</p>
             </div>
-            <p className="text-xs" style={{ color: "#A09A92" }}>Listening to your memory...</p>
-          </div>
-        )}
-
-        {/* Text fallback */}
-        <div className={`mt-16 w-80 transition-opacity duration-300 ${isProcessing ? "opacity-50 pointer-events-none" : ""}`}>
-          <BottomBarInput
-            onSend={sendMessage}
-            placeholder="or type a memory..."
-            minimal
-          />
+          ) : (
+            <BottomBarInput
+              onSend={sendMessage}
+              placeholder="or type a memory..."
+              minimal
+            />
+          )}
         </div>
       </div>
 

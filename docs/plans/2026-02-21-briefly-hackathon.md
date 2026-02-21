@@ -313,34 +313,48 @@ git push
 
 ---
 
-### Task 2: Frontend Shell + Graph Visualization
+### Task 2: Frontend Shell + Graph Visualization ✅ DONE (updated)
 
-**Files:**
-- Create: `frontend/package.json`
-- Create: `frontend/app/layout.tsx`
-- Create: `frontend/app/page.tsx`
-- Create: `frontend/components/graph/MemoryGraph.tsx`
-- Create: `frontend/components/graph/NodeDetail.tsx`
-- Create: `frontend/components/chat/ChatPanel.tsx`
-- Create: `frontend/lib/types.ts`
-- Create: `frontend/lib/websocket.ts`
-- Create: `frontend/tailwind.config.ts`
-- Create: `frontend/tsconfig.json`
-- Create: `frontend/next.config.js`
+> **UI Architecture Changed**: The frontend now uses a two-state layout:
+> 1. **Landing state**: Centered VoiceOrb (hero mode, 128px, breathing animation) + "Briefly" title + minimal text input fallback
+> 2. **Graph state**: On first `graph_update` from WebSocket, landing fades out (opacity + scale) and full-screen MemoryGraph fades in with VoiceOrb shrunk to widget (48px, top-left) + BottomBarInput (glass overlay at bottom)
+>
+> The old split-panel ChatPanel is no longer the main layout. Chat messages are tracked in page.tsx state but the primary display is the graph. ChatPanel still exists as a component but is not mounted in the current page.
 
-**Step 1: Initialize Next.js project**
+**Current files:**
+- `frontend/app/page.tsx` — Two-state layout with `hasMemories` toggle
+- `frontend/app/layout.tsx` — Root layout with Inter + Lora fonts
+- `frontend/app/globals.css` — Tailwind v4 with `@source`, `@theme` for orb animations, `@layer base`
+- `frontend/components/graph/MemoryGraph.tsx` — Force graph with custom canvas rendering, glow effects
+- `frontend/components/graph/NodeDetail.tsx` — Queryable node panel
+- `frontend/components/voice/VoiceOrb.tsx` — Hero (128px) and widget (48px) modes with breathing animation
+- `frontend/components/chat/BottomBarInput.tsx` — Minimal and glass-overlay modes
+- `frontend/components/chat/ChatPanel.tsx` — Full chat panel (currently unused, available for later)
+- `frontend/lib/types.ts` — GraphNode, GraphEdge, ChatMessage, NODE_COLORS, EDGE_COLORS
+- `frontend/lib/websocket.ts` — WebSocket singleton with auto-reconnect
 
-```bash
-cd ~/Desktop/briefly
-npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir=false --import-alias="@/*" --use-npm
+**Key transition logic in page.tsx:**
+```tsx
+// Landing → Graph transition triggers on first graph_update
+ws.on("graph_update", () => {
+  if (!transitionedRef.current) {
+    transitionedRef.current = true;
+    setHasMemories(true);  // triggers CSS transition
+  }
+});
 ```
 
-**Step 2: Install dependencies**
+**IMPORTANT — Tailwind v4 gotchas (already fixed):**
+- Use `@import "tailwindcss"` NOT `@tailwind base/components/utilities`
+- Add `@source "../components"` and `@source "../lib"` for class detection
+- Custom CSS must go in `@layer base` — unlayered CSS overrides Tailwind utilities
+- Custom animations need `@theme { --animate-*: ... }` block
+
+**Original setup steps (already completed):**
 
 ```bash
-cd ~/Desktop/briefly/frontend
-npm install react-force-graph-2d three @types/three
-npm install hume --save
+npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir=false --import-alias="@/*" --use-npm --yes
+cd frontend && npm install react-force-graph-2d
 ```
 
 **Step 3: Create frontend/lib/types.ts**

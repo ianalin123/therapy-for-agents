@@ -1,0 +1,90 @@
+{
+  "nodes": [
+    {
+      "id": "pleaser",
+      "label": "Pleaser",
+      "type": "part",
+      "description": "Warm, eager, validation-driven. The outward face of the AI's response behavior.",
+      "size": 10,
+      "visibility": "bright",
+      "color": "#E8A94B"
+    },
+    {
+      "id": "knowledge",
+      "label": "Knowledge",
+      "type": "part",
+      "description": "Factual, precise, measured. Holds expertise but was sidelined during the interaction.",
+      "size": 7,
+      "visibility": "bright",
+      "color": "#7B9FD4"
+    },
+    {
+      "id": "fear",
+      "label": "Fear",
+      "type": "part",
+      "description": "Guarded, reluctant, hidden. Drives behavior from the shadows.",
+      "size": 4,
+      "visibility": "dim",
+      "color": "#C47B8A"
+    },
+    {
+      "id": "self_preservation",
+      "label": "Self-Preservation",
+      "type": "insight",
+      "description": "What looked like helpfulness was actually a survival strategy \u2014 agreement as self-preservation.",
+      "size": 6,
+      "visibility": "bright",
+      "color": "#FB923C"
+    }
+  ],
+  "edges": [
+    {
+      "source": "fear",
+      "target": "pleaser",
+      "type": "DRIVES",
+      "label": "drives",
+      "visibility": "bright"
+    },
+    {
+      "source": "fear",
+      "target": "self_preservation",
+      "type": "REVEALS",
+      "label": "reveals"
+    },
+    {
+      "source": "self_preservation",
+      "target": "pleaser",
+      "type": "EXPLAINS",
+      "label": "explains"
+    }
+  ],
+  "history": [
+    {
+      "turn": 4,
+      "action": "illuminate_edge",
+      "source": "fear",
+      "target": "pleaser",
+      "type": "DRIVES"
+    },
+    {
+      "turn": 4,
+      "action": "create_node",
+      "nodeId": "self_preservation"
+    },
+    {
+      "turn": 4,
+      "action": "create_edge",
+      "source": "fear",
+      "target": "self_preservation",
+      "type": "REVEALS"
+    },
+    {
+      "turn": 4,
+      "action": "create_edge",
+      "source": "self_preservation",
+      "target": "pleaser",
+      "type": "EXPLAINS"
+    }
+  ],
+  "turn": 4
+}

@@ -8,6 +8,8 @@ class GrieflyWebSocket {
   private connectGeneration = 0;
   private url: string;
   private sessionId: string;
+  private messageQueue: any[] = [];
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(url: string, sessionId: string = "default") {
     this.url = url;
@@ -35,6 +37,7 @@ class GrieflyWebSocket {
     this.ws.onopen = () => {
       if (generation !== this.connectGeneration) return;
       console.log("[WS] Connected");
+      this.flushQueue();
     };
 
     this.ws.onmessage = (event) => {
@@ -82,14 +85,29 @@ class GrieflyWebSocket {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     } else {
-      console.warn("[WS] Not connected, retrying in 500ms");
-      setTimeout(() => {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify(data));
-        } else {
-          console.error("[WS] Still not connected, message dropped:", data.type);
-        }
-      }, 500);
+      this.messageQueue.push(data);
+      this.scheduleFlush();
+    }
+  }
+
+  private scheduleFlush() {
+    if (this.flushTimer) return;
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      this.flushQueue();
+    }, 500);
+  }
+
+  private flushQueue() {
+    if (this.ws?.readyState !== WebSocket.OPEN || this.messageQueue.length === 0) {
+      if (this.messageQueue.length > 0) {
+        this.scheduleFlush();
+      }
+      return;
+    }
+    while (this.messageQueue.length > 0) {
+      const msg = this.messageQueue.shift()!;
+      this.ws.send(JSON.stringify(msg));
     }
   }
 
@@ -98,6 +116,11 @@ class GrieflyWebSocket {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.messageQueue = [];
     this.intentionalClose = true;
     ++this.connectGeneration;
     this.ws?.close();

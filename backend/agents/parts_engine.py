@@ -1,8 +1,15 @@
 """PartsEngine — generates in-character responses from AI psyche parts."""
 
 import asyncio
+import logging
+import os
+
 from anthropic import AsyncAnthropic
 from .prompts import PART_SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
+
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 client = AsyncAnthropic()
 
@@ -29,7 +36,7 @@ async def generate_part_response(
     intensity = probe_analysis.get("intensity", "moderate")
 
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=300,
         system=system,
         messages=[
@@ -42,12 +49,20 @@ async def generate_part_response(
                 ),
             }
         ],
+        timeout=30.0,
     )
+
+    text = ""
+    if response.content and hasattr(response.content[0], 'text'):
+        text = response.content[0].text
+    else:
+        logger.warning("Unexpected response format for part '%s'", part_id)
+        text = f"[{part_def['name']} is processing...]"
 
     return {
         "part": part_id,
         "name": part_def["name"],
-        "content": response.content[0].text,
+        "content": text,
         "color": part_def.get("color", "#A09A92"),
     }
 
@@ -61,6 +76,7 @@ async def generate_multiple_responses(
     probe_analysis: dict,
 ) -> list[dict]:
     tasks = []
+    task_part_ids = []
     for pid in part_ids:
         if pid in parts_defs:
             tasks.append(
@@ -69,15 +85,16 @@ async def generate_multiple_responses(
                     conversation_history, graph_state, probe_analysis,
                 )
             )
+            task_part_ids.append(pid)
 
     if not tasks:
         return []
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     responses = []
-    for r in results:
+    for pid, r in zip(task_part_ids, results):
         if isinstance(r, Exception):
-            print(f"Part response error: {r}")
+            logger.warning("Part '%s' response failed: %s", pid, r)
         else:
             responses.append(r)
     return responses

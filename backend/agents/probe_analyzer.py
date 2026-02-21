@@ -1,7 +1,14 @@
 """ProbeAnalyzer — determines which part(s) the clinician is addressing."""
 
+import logging
+import os
+
 from anthropic import AsyncAnthropic
 from .prompts import PROBE_ANALYZER_PROMPT
+
+logger = logging.getLogger(__name__)
+
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 client = AsyncAnthropic()
 
@@ -60,7 +67,7 @@ async def analyze_probe(
         history_text += f"{role}: {content}\n"
 
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=500,
         system=system,
         tools=ANALYSIS_TOOLS,
@@ -74,12 +81,14 @@ async def analyze_probe(
                 ),
             }
         ],
+        timeout=30.0,
     )
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "analyze_probe":
             return block.input
 
+    logger.warning("ProbeAnalyzer did not return tool_use, using fallback")
     return {
         "addressed_parts": part_names[:1],
         "technique": "open_exploration",

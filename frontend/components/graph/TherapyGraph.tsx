@@ -88,19 +88,25 @@ export default function TherapyGraph({
 
   // Update bubble positions from graph coordinates
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!graphRef.current) return;
-      const positions: Record<string, { x: number; y: number }> = {};
-      for (const node of graphData.nodes) {
-        const anyNode = node as any;
-        if (anyNode.x != null && anyNode.y != null) {
-          const screen = graphRef.current.graph2ScreenCoords(anyNode.x, anyNode.y);
-          positions[node.id] = { x: screen.x, y: screen.y };
+    let animFrameId: number;
+
+    const updatePositions = () => {
+      if (graphRef.current) {
+        const positions: Record<string, { x: number; y: number }> = {};
+        for (const node of graphData.nodes) {
+          const anyNode = node as any;
+          if (anyNode.x != null && anyNode.y != null) {
+            const screen = graphRef.current.graph2ScreenCoords(anyNode.x, anyNode.y);
+            positions[node.id] = { x: screen.x, y: screen.y };
+          }
         }
+        setBubblePositions(positions);
       }
-      setBubblePositions(positions);
-    }, 50);
-    return () => clearInterval(interval);
+      animFrameId = requestAnimationFrame(updatePositions);
+    };
+
+    animFrameId = requestAnimationFrame(updatePositions);
+    return () => cancelAnimationFrame(animFrameId);
   }, [graphData.nodes]);
 
   const nodeCanvasObject = useCallback(

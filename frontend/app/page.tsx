@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import TherapyGraph from "@/components/graph/TherapyGraph";
 import BottomBarInput from "@/components/chat/BottomBarInput";

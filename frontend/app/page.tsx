@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import VoiceOrb from "@/components/voice/VoiceOrb";
 import BottomBarInput from "@/components/chat/BottomBarInput";
+import ChatTranscript from "@/components/chat/ChatTranscript";
 import MemoryGraph from "@/components/graph/MemoryGraph";
 import { ChatMessage } from "@/lib/types";
 import { getWebSocket } from "@/lib/websocket";
@@ -116,6 +117,9 @@ export default function Home() {
             Briefly
           </span>
         </div>
+
+        {/* Chat transcript overlay */}
+        <ChatTranscript messages={messages} />
 
         {/* Bottom bar input */}
         <div className="absolute bottom-0 left-0 right-0 z-20">

@@ -8,8 +8,11 @@ Flow per clinician message:
 """
 
 import asyncio
+import logging
 import time
 from typing import Any, Callable, Awaitable
+
+logger = logging.getLogger(__name__)
 
 from .probe_analyzer import analyze_probe
 from .parts_engine import generate_multiple_responses
@@ -52,7 +55,7 @@ async def process_message(
             session.conversation_history,
         )
     except Exception as e:
-        print(f"ProbeAnalyzer error: {e}")
+        logger.warning("ProbeAnalyzer failed, using fallback: %s", e)
         probe = {
             "addressed_parts": session.part_names()[:1],
             "technique": "open_exploration",
@@ -93,7 +96,7 @@ async def process_message(
             probe_analysis=probe,
         )
     except Exception as e:
-        print(f"PartsEngine error: {e}")
+        logger.warning("PartsEngine failed: %s", e)
         responses = []
 
     t3 = time.monotonic()
@@ -154,7 +157,7 @@ async def process_message(
             triggered_breakthroughs=session.triggered_breakthroughs,
         )
     except Exception as e:
-        print(f"InsightDetector error: {e}")
+        logger.warning("InsightDetector failed: %s", e)
 
     t5 = time.monotonic()
 

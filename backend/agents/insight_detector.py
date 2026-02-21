@@ -1,7 +1,14 @@
 """InsightDetector — detects therapeutic breakthroughs and triggers graph restructuring."""
 
+import logging
+import os
+
 from anthropic import AsyncAnthropic
 from .prompts import INSIGHT_DETECTOR_PROMPT
+
+logger = logging.getLogger(__name__)
+
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 client = AsyncAnthropic()
 
@@ -90,11 +97,12 @@ async def detect_breakthrough(
     )
 
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=500,
         system=system,
         tools=DETECTION_TOOLS,
         messages=[{"role": "user", "content": detection_prompt}],
+        timeout=30.0,
     )
 
     for block in response.content:
@@ -111,4 +119,5 @@ async def detect_breakthrough(
                 }
             return None
 
+    logger.warning("InsightDetector did not return tool_use block")
     return None

@@ -28,7 +28,10 @@ async def lifespan(app: FastAPI):
         graphiti_client = None
     yield
     if graphiti_client:
-        await graphiti_client.close()
+        try:
+            await graphiti_client.close()
+        except Exception:
+            pass
 
 
 app = FastAPI(title="Briefly", lifespan=lifespan)
@@ -66,12 +69,14 @@ async def websocket_endpoint(ws: WebSocket):
             message = json.loads(data)
 
             if message.get("type") == "user_message":
+                user_content = message["content"]
+
                 # Get graph context from Graphiti
                 graph_context = ""
                 if graphiti_client:
                     try:
                         results = await graphiti_client.search(
-                            message["content"], num_results=10
+                            user_content, num_results=10
                         )
                         graph_context = str(results)
                     except Exception:
@@ -82,7 +87,7 @@ async def websocket_endpoint(ws: WebSocket):
 
                 try:
                     result = await process_message(
-                        user_message=message["content"],
+                        user_message=user_content,
                         graph_context=graph_context,
                         graphiti_client=graphiti_client,
                     )
@@ -114,10 +119,30 @@ async def websocket_endpoint(ws: WebSocket):
 
                 except Exception as e:
                     print(f"Agent pipeline error: {e}")
+
+                    # Always send both assistant_message AND graph_update
+                    # so the frontend can transition from landing -> graph
+                    fallback_node_id = f"memory_{hash(user_content) % 10000}"
+                    fallback_label = user_content[:30] + ("..." if len(user_content) > 30 else "")
+
                     await ws.send_text(json.dumps({
                         "type": "assistant_message",
                         "content": "I'm here with you. Could you tell me more about that?",
                     }))
+
+                    await broadcast_graph_update({
+                        "type": "graph_update",
+                        "graphData": {
+                            "nodes": [{
+                                "id": fallback_node_id,
+                                "label": fallback_label,
+                                "type": "memory",
+                                "description": user_content,
+                                "importance": 5,
+                            }],
+                            "links": [],
+                        },
+                    })
 
             elif message.get("type") == "node_query":
                 node_id = message.get("nodeId", "")

@@ -79,6 +79,7 @@ async def websocket_endpoint(ws: WebSocket):
 
             if message.get("type") == "user_message":
                 user_content = message["content"]
+                print(f"[pipeline] Received message: {user_content[:50]}...")
 
                 # Get graph context from Graphiti
                 graph_context = ""
@@ -91,6 +92,20 @@ async def websocket_endpoint(ws: WebSocket):
                     except Exception:
                         pass
 
+                # Build fallback graph data in case pipeline fails
+                fallback_node_id = f"memory_{hash(user_content) % 10000}"
+                fallback_label = user_content[:30] + ("..." if len(user_content) > 30 else "")
+                fallback_graph = {
+                    "nodes": [{
+                        "id": fallback_node_id,
+                        "label": fallback_label,
+                        "type": "memory",
+                        "description": user_content,
+                        "importance": 5,
+                    }],
+                    "links": [],
+                }
+
                 # Process through agent pipeline
                 from agents.orchestrator import process_message
 
@@ -100,57 +115,48 @@ async def websocket_endpoint(ws: WebSocket):
                         graph_context=graph_context,
                         graphiti_client=graphiti_client,
                     )
+                    print(f"[pipeline] Got result — nodes: {len(result['graph_updates']['nodes'])}, response length: {len(result['response'])}")
 
-                    # Send assistant response
-                    await safe_send(ws, {
-                        "type": "assistant_message",
-                        "content": result["response"],
-                        "correctionType": (
-                            result["correction_info"]["correction_type"]
-                            if result.get("correction_info")
-                            else None
-                        ),
-                    })
-
-                    # Broadcast graph updates to all clients
-                    if result["graph_updates"]["nodes"]:
-                        await broadcast_graph_update({
-                            "type": "graph_update",
-                            "graphData": result["graph_updates"],
-                        })
-
-                    # If correction was detected, send correction event
-                    if result.get("correction_info") and result["correction_info"].get("correction_type") in ("productive", "clarifying"):
-                        await broadcast_graph_update({
-                            "type": "correction_detected",
-                            "correctionType": result["correction_info"]["correction_type"],
-                        })
+                    response_text = result["response"]
+                    graph_data = result["graph_updates"]
+                    correction_type = (
+                        result["correction_info"]["correction_type"]
+                        if result.get("correction_info")
+                        else None
+                    )
 
                 except Exception as e:
-                    print(f"Agent pipeline error: {e}")
+                    print(f"[pipeline] Agent pipeline error: {e}")
+                    import traceback
+                    traceback.print_exc()
 
-                    # Always send both assistant_message AND graph_update
-                    # so the frontend can transition from landing -> graph
-                    fallback_node_id = f"memory_{hash(user_content) % 10000}"
-                    fallback_label = user_content[:30] + ("..." if len(user_content) > 30 else "")
+                    response_text = "I'm here with you. Could you tell me more about that?"
+                    graph_data = fallback_graph
+                    correction_type = None
 
-                    await safe_send(ws, {
-                        "type": "assistant_message",
-                        "content": "I'm here with you. Could you tell me more about that?",
-                    })
+                # Ensure we always have at least one node
+                if not graph_data.get("nodes"):
+                    print("[pipeline] No nodes from pipeline, using fallback")
+                    graph_data = fallback_graph
 
+                # Send graph_update FIRST (so frontend transitions before showing response)
+                graph_msg = {"type": "graph_update", "graphData": graph_data}
+                print(f"[pipeline] Sending graph_update with {len(graph_data['nodes'])} nodes")
+                await safe_send(ws, graph_msg)
+
+                # Then send assistant response
+                await safe_send(ws, {
+                    "type": "assistant_message",
+                    "content": response_text,
+                    "correctionType": correction_type,
+                })
+                print(f"[pipeline] Sent assistant_message")
+
+                # If correction was detected, send correction event
+                if correction_type in ("productive", "clarifying"):
                     await broadcast_graph_update({
-                        "type": "graph_update",
-                        "graphData": {
-                            "nodes": [{
-                                "id": fallback_node_id,
-                                "label": fallback_label,
-                                "type": "memory",
-                                "description": user_content,
-                                "importance": 5,
-                            }],
-                            "links": [],
-                        },
+                        "type": "correction_detected",
+                        "correctionType": correction_type,
                     })
 
             elif message.get("type") == "node_query":

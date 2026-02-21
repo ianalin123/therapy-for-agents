@@ -37,7 +37,8 @@ export default function Home() {
       ]);
     });
 
-    ws.on("graph_update", () => {
+    ws.on("graph_update", (data) => {
+      console.log("[page] graph_update received, nodes:", data?.graphData?.nodes?.length);
       if (!transitionedRef.current) {
         transitionedRef.current = true;
         setHasMemories(true);

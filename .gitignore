@@ -20,3 +20,6 @@ venv/
 # LLM cache
 llm_cache/
 /.cursor
+
+# Session data
+data/sessions/

@@ -20,7 +20,59 @@ interface SpeechBubble {
   timestamp: number;
 }
 
-export default function Home() {
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("[ErrorBoundary]", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main
+          className="h-screen flex items-center justify-center"
+          style={{ background: "#0D0D0F" }}
+        >
+          <div className="text-center max-w-md">
+            <h1
+              className="text-xl font-serif mb-3"
+              style={{ color: "#F0EDE8" }}
+            >
+              Session Interrupted
+            </h1>
+            <p className="text-sm mb-4" style={{ color: "#A09A92" }}>
+              Something went wrong. Please refresh to restart the session.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{
+                background: "#E8A94B",
+                color: "#0D0D0F",
+              }}
+            >
+              Refresh Session
+            </button>
+          </div>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function HomeContent() {
   const [scenario, setScenario] = useState<ScenarioInfo | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -364,5 +416,13 @@ export default function Home() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <ErrorBoundary>
+      <HomeContent />
+    </ErrorBoundary>
   );
 }

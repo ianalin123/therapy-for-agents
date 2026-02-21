@@ -6,16 +6,6 @@ from .prompts import LEARNER_PROMPT
 
 client = AsyncAnthropic()
 
-preference_profile = {
-    "corrections": [],
-    "preferred_register": "unknown",
-    "sensitive_topics": [],
-    "productive_topics": [],
-    "imprecision_that_works": [],
-    "imprecision_that_fails": [],
-    "summary": "No profile yet — first interaction.",
-}
-
 CLASSIFY_TOOLS = [
     {
         "name": "classify_correction",
@@ -41,8 +31,9 @@ async def classify_response(
     user_response: str,
     previous_reflection: str,
     conversation_history: list[dict],
+    preference_profile_json: str = "{}",
 ) -> dict:
-    system = LEARNER_PROMPT.format(current_profile=json.dumps(preference_profile, indent=2))
+    system = LEARNER_PROMPT.format(current_profile=preference_profile_json)
 
     response = await client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -59,17 +50,6 @@ async def classify_response(
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "classify_correction":
-            result = block.input
-            preference_profile["corrections"].append({
-                "type": result["correction_type"],
-                "reflection": result["reflection_about_what_worked"],
-            })
-            if result.get("updated_preference_note"):
-                preference_profile["summary"] = result["updated_preference_note"]
-            return result
+            return block.input
 
     return {"correction_type": "agreement", "new_memory_unlocked": False, "reflection_about_what_worked": ""}
-
-
-def get_preference_profile() -> str:
-    return json.dumps(preference_profile, indent=2)

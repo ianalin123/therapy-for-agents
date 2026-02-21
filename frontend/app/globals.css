@@ -2,6 +2,11 @@
 @source "../components";
 @source "../lib";
 
+@theme {
+  --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 @layer base {
   html, body {
     height: 100%;

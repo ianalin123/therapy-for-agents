@@ -7,6 +7,23 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --animate-bubble-in: bubble-in 300ms ease-out forwards;
   --animate-breakthrough-in: breakthrough-in 500ms ease-out forwards;
+
+  /* Palette */
+  --color-bg-primary: #0D0D0F;
+  --color-bg-surface: #141418;
+  --color-bg-elevated: #1C1C22;
+  --color-accent: #E8A94B;
+  --color-accent-muted: rgba(232, 169, 75, 0.15);
+  --color-text-primary: #F0EDE8;
+  --color-text-secondary: #A09A92;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-accent: rgba(232, 169, 75, 0.3);
+
+  /* Glass panel */
+  --glass-bg: rgba(20, 20, 24, 0.75);
+  --glass-bg-heavy: rgba(20, 20, 24, 0.92);
+  --glass-bg-solid: rgba(20, 20, 24, 0.96);
+  --glass-border: rgba(255, 255, 255, 0.06);
 }
 
 @layer base {
@@ -33,8 +50,35 @@
   }
 }
 
+/* Utility: glass panel (transcript, input bar, status chips) */
+@utility glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+}
+
+/* Utility: pill badge for part names / tags */
+@utility pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Utility: section label ("CASE FILE", "SESSION TRANSCRIPT", etc.) */
+@utility section-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
 input:focus {
-  border-color: rgba(232, 169, 75, 0.4) !important;
+  border-color: var(--color-border-accent) !important;
 }
 
 @keyframes bubble-in {

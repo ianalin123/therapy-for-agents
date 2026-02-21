@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${lora.variable}`}>
-      <body className="antialiased" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif", background: "#0D0D0F", color: "#F0EDE8" }}>
+      <body className="antialiased font-sans bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
         {children}
       </body>
     </html>

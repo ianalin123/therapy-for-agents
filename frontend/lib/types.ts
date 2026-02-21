@@ -78,6 +78,17 @@ export interface BreakthroughEvent {
   fullSnapshot: GraphData & { turn: number };
 }
 
+// ---- Speech bubbles ----
+
+export interface SpeechBubble {
+  id: string;
+  part: string;
+  name: string;
+  content: string;
+  color: string;
+  timestamp: number;
+}
+
 // ---- Agent status ----
 
 export interface AgentStatus {

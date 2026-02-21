@@ -4,21 +4,19 @@ import React from "react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import TherapyGraph from "@/components/graph/TherapyGraph";
 import BottomBarInput from "@/components/chat/BottomBarInput";
+import Header from "@/components/Header";
+import AgentStatusBar from "@/components/AgentStatusBar";
+import CaseFileOverlay from "@/components/CaseFileOverlay";
+import SessionTranscript from "@/components/SessionTranscript";
 import {
   ChatMessage, ScenarioInfo, BreakthroughEvent,
-  GraphData, GraphNode, GraphEdge, AgentStatus,
+  GraphData, GraphNode, GraphEdge, AgentStatus, SpeechBubble,
 } from "@/lib/types";
 import { getWebSocket } from "@/lib/websocket";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-
-interface SpeechBubble {
-  id: string;
-  part: string;
-  name: string;
-  content: string;
-  color: string;
-  timestamp: number;
-}
+import {
+  BUBBLE_LIFETIME_MS, BUBBLE_CLEANUP_INTERVAL_MS, PROCESSING_TIMEOUT_MS,
+} from "@/lib/constants";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -40,27 +38,17 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <main
-          className="h-screen flex items-center justify-center"
-          style={{ background: "#0D0D0F" }}
-        >
+        <main className="h-screen flex items-center justify-center bg-[var(--color-bg-primary)]">
           <div className="text-center max-w-md">
-            <h1
-              className="text-xl font-serif mb-3"
-              style={{ color: "#F0EDE8" }}
-            >
+            <h1 className="text-xl font-serif mb-3 text-[var(--color-text-primary)]">
               Session Interrupted
             </h1>
-            <p className="text-sm mb-4" style={{ color: "#A09A92" }}>
+            <p className="text-sm mb-4 text-[var(--color-text-secondary)]">
               Something went wrong. Please refresh to restart the session.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-lg text-sm font-medium"
-              style={{
-                background: "#E8A94B",
-                color: "#0D0D0F",
-              }}
+              className="px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--color-accent)] text-[var(--color-bg-primary)]"
             >
               Refresh Session
             </button>
@@ -165,8 +153,8 @@ function HomeContent() {
   // Clean up old speech bubbles
   useEffect(() => {
     const interval = setInterval(() => {
-      setSpeechBubbles((prev) => prev.filter((b) => Date.now() - b.timestamp < 16000));
-    }, 2000);
+      setSpeechBubbles((prev) => prev.filter((b) => Date.now() - b.timestamp < BUBBLE_LIFETIME_MS));
+    }, BUBBLE_CLEANUP_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -184,7 +172,7 @@ function HomeContent() {
       setIsProcessing(true);
 
       if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
-      processingTimeoutRef.current = setTimeout(() => setIsProcessing(false), 30000);
+      processingTimeoutRef.current = setTimeout(() => setIsProcessing(false), PROCESSING_TIMEOUT_MS);
 
       const ws = getWebSocket();
       ws.send({ type: "user_message", content });
@@ -204,125 +192,41 @@ function HomeContent() {
     ? `Speaking to ${scenario.parts[selectedPart].name}...`
     : "Ask any part a question...";
 
-  // Active agent indicators
   const activeAgents = Object.values(agentStatuses).filter((a) => a.status === "running");
 
   return (
-    <main className="h-screen relative overflow-hidden" style={{ background: "#0D0D0F" }}>
-      {/* ===== Case File Opening ===== */}
+    <main className="h-screen relative overflow-hidden bg-[var(--color-bg-primary)]">
+      {/* Case file opening overlay */}
       {!sessionStarted && scenario && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0" style={{ background: "rgba(13, 13, 15, 0.7)" }} />
-          <div
-            className="relative max-w-[480px] rounded-2xl p-6 border border-white/10 shadow-2xl"
-            style={{ background: "#141418" }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-8 rounded-full bg-amber-500" />
-              <div>
-                <h1 className="text-xl font-serif text-[#F0EDE8]">
-                  {scenario.title}
-                </h1>
-                <p className="text-xs italic text-amber-500/80 mt-0.5">
-                  {scenario.tagline}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-lg p-4 mb-4" style={{ background: "#0D0D0F" }}>
-              <p className="text-xs uppercase tracking-wider text-[#A09A92] mb-2">Case File</p>
-              <p className="text-sm text-[#F0EDE8] leading-relaxed whitespace-pre-line">
-                {scenario.caseDescription}
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-xs uppercase tracking-wider text-[#A09A92] mb-2">Parts Present</p>
-              <div className="flex gap-2">
-                {Object.entries(scenario.parts).map(([id, part]) => (
-                  <span
-                    key={id}
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs"
-                    style={{
-                      background: part.color + "20",
-                      color: part.color,
-                      border: `1px solid ${part.color}30`,
-                    }}
-                  >
-                    <span className="w-2 h-2 rounded-full" style={{ background: part.color }} />
-                    {part.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-xs text-[#A09A92] mb-4">
-              Click a node in the graph to address a specific part, or ask a general question.
-              {isSupported && " Voice input is available."}
-            </p>
-
-            <button
-              onClick={() => setSessionStarted(true)}
-              className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-amber-500/90"
-              style={{ background: "#E8A94B", color: "#0D0D0F" }}
-            >
-              Begin Session
-            </button>
-          </div>
-        </div>
+        <CaseFileOverlay
+          scenario={scenario}
+          isVoiceSupported={isSupported}
+          onBegin={() => setSessionStarted(true)}
+        />
       )}
 
-      {/* ===== Header ===== */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
-        <span className="text-sm font-serif tracking-wide" style={{ color: "rgba(240, 237, 232, 0.6)" }}>
-          AgentTherapy
-        </span>
-        {scenario && (
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(232, 169, 75, 0.15)", color: "#E8A94B" }}>
-            {scenario.title}
-          </span>
-        )}
-      </div>
+      <Header scenario={scenario} />
+      <AgentStatusBar agents={activeAgents} />
 
-      {/* ===== Agent status indicators ===== */}
-      {activeAgents.length > 0 && (
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-1">
-          {activeAgents.map((a) => (
-            <div
-              key={a.agent}
-              className="flex items-center gap-2 text-xs px-2.5 py-1 rounded-lg"
-              style={{ background: "rgba(20, 20, 24, 0.8)", color: "#A09A92" }}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: "#E8A94B" }}
-              />
-              {a.agent}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ===== Selected part indicator ===== */}
+      {/* Selected part indicator */}
       {selectedPart && scenario?.parts[selectedPart] && (
         <div className="absolute top-14 left-4 z-20">
           <button
             onClick={() => setSelectedPart(null)}
-            className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
+            className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5 bg-[var(--glass-bg-heavy)]"
             style={{
-              background: "rgba(20, 20, 24, 0.8)",
               border: `1px solid ${scenario.parts[selectedPart].color}40`,
               color: scenario.parts[selectedPart].color,
             }}
           >
             <span className="w-2 h-2 rounded-full" style={{ background: scenario.parts[selectedPart].color }} />
             Speaking to {scenario.parts[selectedPart].name}
-            <span className="text-[#A09A92] ml-1">&times;</span>
+            <span className="text-[var(--color-text-secondary)] ml-1">&times;</span>
           </button>
         </div>
       )}
 
-      {/* ===== Graph (full screen) ===== */}
+      {/* Graph (full screen) */}
       <div className="absolute inset-0">
         <TherapyGraph
           graphData={graphData}
@@ -334,75 +238,29 @@ function HomeContent() {
         />
       </div>
 
-      {/* ===== Session transcript (right side) ===== */}
-      <div
-        className="absolute top-16 right-4 bottom-20 w-72 z-20 overflow-y-auto rounded-xl p-3"
-        style={{
-          background: "rgba(20, 20, 24, 0.75)",
-          backdropFilter: "blur(8px)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <p className="text-xs uppercase tracking-wider text-[#A09A92] mb-2">Session Transcript</p>
-        {messages.length === 0 && (
-          <p className="text-xs text-[#A09A92]/60 italic">
-            No messages yet. Begin by addressing a part.
-          </p>
-        )}
-        {messages.map((msg) => (
-          <div key={msg.id} className="mb-2.5">
-            {msg.role === "user" ? (
-              <div>
-                <span className="text-xs font-medium text-[#A09A92]">You</span>
-                <p className="text-xs text-[#F0EDE8] mt-0.5 leading-relaxed">{msg.content}</p>
-              </div>
-            ) : (
-              <div>
-                <span className="text-xs font-medium" style={{ color: msg.partColor || "#A09A92" }}>
-                  {msg.partName || msg.part}
-                </span>
-                <p className="text-xs text-[#F0EDE8]/80 mt-0.5 leading-relaxed">{msg.content}</p>
-              </div>
-            )}
-          </div>
-        ))}
-        {isProcessing && (
-          <div className="flex gap-1.5 mt-2">
-            <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "0ms" }} />
-            <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "150ms" }} />
-            <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "300ms" }} />
-          </div>
-        )}
-      </div>
+      <SessionTranscript messages={messages} isProcessing={isProcessing} />
 
-      {/* ===== Input bar ===== */}
-      <div className="absolute bottom-0 left-0 right-0 z-20">
-        <div
-          className="flex gap-2 p-4 items-center"
-          style={{
-            background: "rgba(13, 13, 15, 0.85)",
-            backdropFilter: "blur(12px)",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
+      {/* Input bar */}
+      <div className="absolute bottom-0 inset-x-0 z-20">
+        <div className="flex gap-3 p-4 items-center bg-[var(--color-bg-primary)]/85 backdrop-blur-xl border-t border-[var(--glass-border)]">
           {isSupported && (
             <button
               onClick={toggleListening}
-              className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0"
+              className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors shrink-0 relative"
               style={{
-                background: isListening ? "rgba(232, 169, 75, 0.2)" : "rgba(255,255,255,0.06)",
-                border: isListening ? "1px solid rgba(232, 169, 75, 0.4)" : "1px solid rgba(255,255,255,0.08)",
+                background: isListening ? "rgba(232, 169, 75, 0.2)" : "var(--color-border)",
+                border: isListening ? "1px solid var(--color-border-accent)" : "1px solid var(--color-border)",
               }}
-              title={isListening ? "Stop listening" : "Start voice input"}
+              aria-label={isListening ? "Stop listening" : "Start voice input"}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isListening ? "#E8A94B" : "#A09A92"} strokeWidth="2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isListening ? "var(--color-accent)" : "var(--color-text-secondary)"} strokeWidth="2">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                 <line x1="12" y1="19" x2="12" y2="23" />
                 <line x1="8" y1="23" x2="16" y2="23" />
               </svg>
               {isListening && (
-                <span className="absolute w-10 h-10 rounded-xl animate-ping opacity-20" style={{ background: "#E8A94B" }} />
+                <span className="absolute inset-0 rounded-lg bg-[var(--color-accent)] animate-ping opacity-20" />
               )}
             </button>
           )}
@@ -410,7 +268,6 @@ function HomeContent() {
             <BottomBarInput
               onSend={sendMessage}
               placeholder={placeholder}
-              minimal
             />
           </div>
         </div>

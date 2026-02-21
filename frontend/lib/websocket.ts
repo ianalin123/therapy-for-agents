@@ -1,3 +1,5 @@
+import { WS_RECONNECT_DELAY_MS } from "./constants";
+
 type MessageHandler = (data: any) => void;
 
 class GrieflyWebSocket {
@@ -60,7 +62,7 @@ class GrieflyWebSocket {
         return;
       }
       console.log("[WS] Disconnected, reconnecting in 2s...");
-      this.reconnectTimer = setTimeout(() => this.connect(), 2000);
+      this.reconnectTimer = setTimeout(() => this.connect(), WS_RECONNECT_DELAY_MS);
     };
 
     this.ws.onerror = (error) => {

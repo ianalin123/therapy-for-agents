@@ -4,19 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   GraphData, GraphNode, GraphEdge, BreakthroughEvent,
-  PartResponse, NODE_COLORS, EDGE_COLORS,
+  PartResponse, SpeechBubble, NODE_COLORS, EDGE_COLORS,
 } from "@/lib/types";
+import {
+  BUBBLE_VISIBLE_MS, BUBBLE_FADE_START_MS, BUBBLE_FADE_DURATION_MS,
+  BLOOM_DURATION_MS, BLOOM_GLOW_DURATION_MS, ILLUMINATE_PULSE_DURATION_MS,
+} from "@/lib/constants";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
-
-interface SpeechBubble {
-  id: string;
-  part: string;
-  name: string;
-  content: string;
-  color: string;
-  timestamp: number;
-}
 
 interface Props {
   graphData: GraphData;
@@ -125,12 +120,12 @@ export default function TherapyGraph({
       let bloomScale = 1;
       if (addedAt) {
         const elapsed = now - addedAt;
-        if (elapsed < 600) {
-          const t = elapsed / 600;
+        if (elapsed < BLOOM_DURATION_MS) {
+          const t = elapsed / BLOOM_DURATION_MS;
           bloomScale = t < 0.5 ? (t / 0.5) * 1.3 : 1.3 - 0.3 * ((t - 0.5) / 0.5);
         }
-        if (elapsed < 1000) {
-          const t = elapsed / 1000;
+        if (elapsed < BLOOM_GLOW_DURATION_MS) {
+          const t = elapsed / BLOOM_GLOW_DURATION_MS;
           const glowRadius = baseSize * (2 + t * 4);
           ctx.beginPath();
           ctx.arc(n.x, n.y, glowRadius, 0, 2 * Math.PI);
@@ -221,7 +216,7 @@ export default function TherapyGraph({
       if (isIlluminated) {
         const now = Date.now();
         const elapsed = now - breakthroughTimestampRef.current;
-        const pulseT = Math.min(elapsed / 2000, 1);
+        const pulseT = Math.min(elapsed / ILLUMINATE_PULSE_DURATION_MS, 1);
         const pulseAlpha = 0.3 + Math.sin(pulseT * Math.PI * 4) * 0.5;
 
         ctx.beginPath();
@@ -266,7 +261,7 @@ export default function TherapyGraph({
 
   // Visible speech bubbles: last bubble per part, max 3 total, recent 15s
   const visibleBubbles = speechBubbles
-    .filter((b) => Date.now() - b.timestamp < 15000)
+    .filter((b) => Date.now() - b.timestamp < BUBBLE_VISIBLE_MS)
     .reduce((acc, b) => {
       acc.set(b.part, b);
       return acc;
@@ -274,7 +269,7 @@ export default function TherapyGraph({
   const bubbleList = Array.from(visibleBubbles.values()).slice(-3);
 
   return (
-    <div ref={containerRef} className="relative h-full w-full" style={{ background: "#0D0D0F" }}>
+    <div ref={containerRef} className="relative h-full w-full bg-[var(--color-bg-primary)]">
       <ForceGraph2D
         ref={graphRef}
         graphData={graphData}
@@ -297,40 +292,34 @@ export default function TherapyGraph({
         const pos = bubblePositions[bubble.part];
         if (!pos) return null;
         const age = Date.now() - bubble.timestamp;
-        const opacity = age > 12000 ? Math.max(0, 1 - (age - 12000) / 3000) : 1;
+        const opacity = age > BUBBLE_FADE_START_MS ? Math.max(0, 1 - (age - BUBBLE_FADE_START_MS) / BUBBLE_FADE_DURATION_MS) : 1;
 
         return (
           <div
             key={bubble.id}
-            className="absolute pointer-events-none animate-bubble-in"
+            className="absolute pointer-events-none animate-bubble-in z-30"
             style={{
               left: pos.x,
               top: pos.y - 20,
               transform: "translate(-50%, -100%)",
               opacity,
-              zIndex: 30,
             }}
           >
             <div
-              className="max-w-[280px] rounded-xl px-3 py-2 text-sm shadow-lg backdrop-blur-sm"
-              style={{
-                background: "rgba(20, 20, 24, 0.92)",
-                border: `1px solid ${bubble.color}40`,
-                color: "#F0EDE8",
-              }}
+              className="max-w-[280px] rounded-xl px-3 py-2 text-sm backdrop-blur-sm bg-[var(--glass-bg-heavy)] text-[var(--color-text-primary)]"
+              style={{ border: `1px solid ${bubble.color}40` }}
             >
               <span className="text-xs font-semibold block mb-0.5" style={{ color: bubble.color }}>
                 {bubble.name}
               </span>
               {bubble.content}
             </div>
-            {/* Speech bubble tail */}
             <div
               className="mx-auto w-0 h-0"
               style={{
                 borderLeft: "6px solid transparent",
                 borderRight: "6px solid transparent",
-                borderTop: "6px solid rgba(20, 20, 24, 0.92)",
+                borderTop: "6px solid var(--glass-bg-heavy)",
               }}
             />
           </div>
@@ -341,20 +330,17 @@ export default function TherapyGraph({
       {breakthrough && (
         <div className="absolute inset-0 z-40 flex items-center justify-center animate-breakthrough-in">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onDismissBreakthrough} />
-          <div
-            className="relative max-w-[400px] rounded-2xl p-6 shadow-2xl border border-amber-500/30"
-            style={{ background: "rgba(20, 20, 24, 0.96)" }}
-          >
+          <div className="relative max-w-[400px] rounded-2xl p-6 border border-[var(--color-border-accent)] bg-[var(--glass-bg-solid)]">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-500">
+              <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)]">
                 Breakthrough
               </h3>
             </div>
-            <h2 className="text-lg font-serif text-[#F0EDE8] mb-2">
+            <h2 className="text-lg font-serif text-[var(--color-text-primary)] mb-2">
               {breakthrough.name}
             </h2>
-            <p className="text-sm text-[#A09A92] leading-relaxed">
+            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
               {breakthrough.insightSummary}
             </p>
 
@@ -363,13 +349,13 @@ export default function TherapyGraph({
                 {breakthrough.graphDiff.new_nodes.map((node) => (
                   <span
                     key={node.id}
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+                    className="pill"
                     style={{
-                      background: (node.color || "#E8A94B") + "20",
-                      color: node.color || "#E8A94B",
+                      background: (node.color || "var(--color-accent)") + "20",
+                      color: node.color || "var(--color-accent)",
                     }}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: node.color || "#E8A94B" }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: node.color || "var(--color-accent)" }} />
                     {node.label}
                   </span>
                 ))}
@@ -378,8 +364,7 @@ export default function TherapyGraph({
 
             <button
               onClick={onDismissBreakthrough}
-              className="mt-4 w-full py-2 rounded-lg text-sm font-medium transition-colors hover:bg-amber-500/20"
-              style={{ color: "#E8A94B", border: "1px solid rgba(232, 169, 75, 0.3)" }}
+              className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium transition-colors text-[var(--color-accent)] border border-[var(--color-border-accent)] hover:bg-[var(--color-accent-muted)]"
             >
               Continue Session
             </button>

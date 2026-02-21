@@ -4,6 +4,7 @@ class GrieflyWebSocket {
   private ws: WebSocket | null = null;
   private handlers: Map<string, MessageHandler[]> = new Map();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private intentionalClose = false;
   private url: string;
 
   constructor(url: string) {
@@ -11,25 +12,42 @@ class GrieflyWebSocket {
   }
 
   connect() {
+    // Cancel any pending reconnect
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // Close existing connection cleanly
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      this.intentionalClose = true;
+      this.ws.close();
+    }
+
+    this.intentionalClose = false;
     this.ws = new WebSocket(this.url);
 
     this.ws.onopen = () => {
       console.log("[WS] Connected");
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
     };
 
     this.ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const handlers = this.handlers.get(data.type) || [];
-      handlers.forEach((handler) => handler(data));
-      const anyHandlers = this.handlers.get("*") || [];
-      anyHandlers.forEach((handler) => handler(data));
+      try {
+        const data = JSON.parse(event.data);
+        const handlers = this.handlers.get(data.type) || [];
+        handlers.forEach((handler) => handler(data));
+        const anyHandlers = this.handlers.get("*") || [];
+        anyHandlers.forEach((handler) => handler(data));
+      } catch (e) {
+        console.error("[WS] Message parse error:", e);
+      }
     };
 
     this.ws.onclose = () => {
+      if (this.intentionalClose) {
+        console.log("[WS] Closed intentionally");
+        return;
+      }
       console.log("[WS] Disconnected, reconnecting in 2s...");
       this.reconnectTimer = setTimeout(() => this.connect(), 2000);
     };
@@ -72,7 +90,9 @@ class GrieflyWebSocket {
   disconnect() {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
+    this.intentionalClose = true;
     this.ws?.close();
   }
 }

@@ -1,9 +1,9 @@
 """Reflector agent — finds patterns and generates productive imprecision."""
 
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from .prompts import REFLECTOR_PROMPT
 
-client = Anthropic()
+client = AsyncAnthropic()
 
 
 async def generate_reflection(
@@ -21,7 +21,7 @@ async def generate_reflection(
         {"role": "user", "content": user_message},
     ]
 
-    response = client.messages.create(
+    response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=500,
         system=system,

@@ -48,20 +48,37 @@ async def process_message(
     }
 
     # ------------------------------------------------------------------
-    # Step 1: Listener — extract entities
+    # Step 1 (parallel): Listener + Learner run concurrently
     # ------------------------------------------------------------------
-    try:
-        extraction = await extract_entities(user_message, graph_context)
-    except Exception as e:
-        print(f"Listener extraction error: {e}")
-        extraction = {"entities": [], "relationships": []}
+    async def _run_listener():
+        try:
+            return await extract_entities(user_message, graph_context)
+        except Exception as e:
+            print(f"Listener extraction error: {e}")
+            return {"entities": [], "relationships": []}
+
+    async def _run_learner():
+        if not last_reflection:
+            return None
+        try:
+            return await classify_response(
+                user_message, last_reflection, conversation_history
+            )
+        except Exception as e:
+            print(f"Learner classification error: {e}")
+            return None
+
+    extraction, correction = await asyncio.gather(
+        _run_listener(), _run_learner()
+    )
+    result["correction_info"] = correction
 
     # If listener extraction failed or returned empty, create a minimal node
     if not extraction.get("entities"):
         extraction = _minimal_extraction(user_message)
 
     # ------------------------------------------------------------------
-    # Ingest into Graphiti if available
+    # Ingest into Graphiti (fire-and-forget)
     # ------------------------------------------------------------------
     if graphiti_client and extraction.get("entities"):
         async def _ingest():
@@ -95,20 +112,7 @@ async def process_message(
         })
 
     # ------------------------------------------------------------------
-    # Step 2: Learner — classify if this is a correction
-    # ------------------------------------------------------------------
-    if last_reflection:
-        try:
-            correction = await classify_response(
-                user_message, last_reflection, conversation_history
-            )
-            result["correction_info"] = correction
-        except Exception as e:
-            print(f"Learner classification error: {e}")
-            result["correction_info"] = None
-
-    # ------------------------------------------------------------------
-    # Step 3: Reflector — generate response with productive imprecision
+    # Step 2: Reflector — generate response with productive imprecision
     # ------------------------------------------------------------------
     graph_summary = json.dumps(extraction, indent=2)
     pref_profile = get_preference_profile()
@@ -128,7 +132,7 @@ async def process_message(
         )
 
     # ------------------------------------------------------------------
-    # Step 4: Guardian — safety check
+    # Step 3: Guardian — safety check
     # ------------------------------------------------------------------
     try:
         safety = await evaluate_response(

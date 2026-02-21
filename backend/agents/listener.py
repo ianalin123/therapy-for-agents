@@ -1,10 +1,10 @@
 """Listener agent — extracts entities and relationships from user input."""
 
 import json
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from .prompts import LISTENER_PROMPT
 
-client = Anthropic()
+client = AsyncAnthropic()
 
 EXTRACTION_TOOLS = [
     {
@@ -48,7 +48,7 @@ EXTRACTION_TOOLS = [
 
 
 async def extract_entities(user_message: str, graph_context: str = "") -> dict:
-    response = client.messages.create(
+    response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2000,
         system=LISTENER_PROMPT,

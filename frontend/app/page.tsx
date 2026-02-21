@@ -20,6 +20,10 @@ export default function Home() {
     ws.connect();
 
     ws.on("assistant_message", (data) => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
       setIsProcessing(false);
       setMessages((prev) => [
         ...prev,
@@ -43,6 +47,8 @@ export default function Home() {
     return () => ws.disconnect();
   }, []);
 
+  const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const sendMessage = useCallback(
     (content: string) => {
       const msg: ChatMessage = {
@@ -53,6 +59,13 @@ export default function Home() {
       };
       setMessages((prev) => [...prev, msg]);
       setIsProcessing(true);
+
+      // Safety timeout — if no response in 30s, unblock the UI
+      if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
+      processingTimeoutRef.current = setTimeout(() => {
+        setIsProcessing(false);
+      }, 30000);
+
       const ws = getWebSocket();
       ws.send({ type: "user_message", content });
     },

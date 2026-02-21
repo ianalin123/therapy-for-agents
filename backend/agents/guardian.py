@@ -1,10 +1,10 @@
 """Guardian agent — safety and emotional pacing."""
 
 import json
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from .prompts import GUARDIAN_PROMPT
 
-client = Anthropic()
+client = AsyncAnthropic()
 
 GUARDIAN_TOOLS = [
     {
@@ -29,7 +29,7 @@ async def evaluate_response(
     user_message: str,
     conversation_history: list[dict],
 ) -> dict:
-    response = client.messages.create(
+    response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         system=GUARDIAN_PROMPT,

@@ -1,10 +1,10 @@
 """Learner agent — classifies corrections and builds preference profile."""
 
 import json
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from .prompts import LEARNER_PROMPT
 
-client = Anthropic()
+client = AsyncAnthropic()
 
 preference_profile = {
     "corrections": [],
@@ -44,7 +44,7 @@ async def classify_response(
 ) -> dict:
     system = LEARNER_PROMPT.format(current_profile=json.dumps(preference_profile, indent=2))
 
-    response = client.messages.create(
+    response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         system=system,

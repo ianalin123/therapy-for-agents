@@ -45,6 +45,14 @@ app.add_middleware(
 )
 
 
+async def safe_send(ws: WebSocket, data: dict[str, Any]):
+    """Send to a single WebSocket, ignoring if already closed."""
+    try:
+        await ws.send_text(json.dumps(data))
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+
+
 async def broadcast_graph_update(data: dict[str, Any]):
     """Push graph updates to all connected frontend clients."""
     message = json.dumps(data)
@@ -52,10 +60,11 @@ async def broadcast_graph_update(data: dict[str, Any]):
     for client in connected_clients:
         try:
             await client.send_text(message)
-        except WebSocketDisconnect:
+        except (WebSocketDisconnect, RuntimeError):
             disconnected.append(client)
     for client in disconnected:
-        connected_clients.remove(client)
+        if client in connected_clients:
+            connected_clients.remove(client)
 
 
 @app.websocket("/ws")
@@ -93,7 +102,7 @@ async def websocket_endpoint(ws: WebSocket):
                     )
 
                     # Send assistant response
-                    await ws.send_text(json.dumps({
+                    await safe_send(ws, {
                         "type": "assistant_message",
                         "content": result["response"],
                         "correctionType": (
@@ -101,7 +110,7 @@ async def websocket_endpoint(ws: WebSocket):
                             if result.get("correction_info")
                             else None
                         ),
-                    }))
+                    })
 
                     # Broadcast graph updates to all clients
                     if result["graph_updates"]["nodes"]:
@@ -125,10 +134,10 @@ async def websocket_endpoint(ws: WebSocket):
                     fallback_node_id = f"memory_{hash(user_content) % 10000}"
                     fallback_label = user_content[:30] + ("..." if len(user_content) > 30 else "")
 
-                    await ws.send_text(json.dumps({
+                    await safe_send(ws, {
                         "type": "assistant_message",
                         "content": "I'm here with you. Could you tell me more about that?",
-                    }))
+                    })
 
                     await broadcast_graph_update({
                         "type": "graph_update",
@@ -158,9 +167,9 @@ async def websocket_endpoint(ws: WebSocket):
                         )
                         answer_context = str(results)
 
-                        from anthropic import Anthropic
-                        anthropic_client = Anthropic()
-                        answer = anthropic_client.messages.create(
+                        from anthropic import AsyncAnthropic
+                        anthropic_client = AsyncAnthropic()
+                        answer = await anthropic_client.messages.create(
                             model="claude-sonnet-4-20250514",
                             max_tokens=300,
                             messages=[{
@@ -177,11 +186,11 @@ async def websocket_endpoint(ws: WebSocket):
                     except Exception as e:
                         print(f"Node query error: {e}")
 
-                await ws.send_text(json.dumps({
+                await safe_send(ws, {
                     "type": "node_answer",
                     "nodeId": node_id,
                     "answer": answer_text,
-                }))
+                })
 
     except WebSocketDisconnect:
         if ws in connected_clients:

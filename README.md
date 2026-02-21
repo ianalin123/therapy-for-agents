@@ -1,4 +1,4 @@
-# Alignment Clinic
+# Alignment Clinic (Therapy for AI Agents)
 
 > We've been treating sycophancy as a training bug. What if it's a trauma response?
 

@@ -11,6 +11,7 @@ import { getWebSocket } from "@/lib/websocket";
 export default function Home() {
   const [hasMemories, setHasMemories] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   const transitionedRef = useRef(false);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export default function Home() {
     ws.connect();
 
     ws.on("assistant_message", (data) => {
+      setIsProcessing(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -49,6 +51,7 @@ export default function Home() {
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, msg]);
+      setIsProcessing(true);
       const ws = getWebSocket();
       ws.send({ type: "user_message", content });
     },
@@ -82,8 +85,20 @@ export default function Home() {
         {/* Orb */}
         <VoiceOrb mode="hero" />
 
+        {/* Processing indicator */}
+        {isProcessing && (
+          <div className="mt-8 flex flex-col items-center gap-3 animate-pulse">
+            <div className="flex gap-1.5">
+              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "0ms" }} />
+              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "150ms" }} />
+              <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#E8A94B", animationDelay: "300ms" }} />
+            </div>
+            <p className="text-xs" style={{ color: "#A09A92" }}>Listening to your memory...</p>
+          </div>
+        )}
+
         {/* Text fallback */}
-        <div className="mt-16 w-80">
+        <div className={`mt-16 w-80 transition-opacity duration-300 ${isProcessing ? "opacity-50 pointer-events-none" : ""}`}>
           <BottomBarInput
             onSend={sendMessage}
             placeholder="or type a memory..."

@@ -53,7 +53,19 @@ class BrieflyWebSocket {
 
   send(data: any) {
     if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log("[WS] Sending:", data.type);
       this.ws.send(JSON.stringify(data));
+    } else {
+      console.warn("[WS] Not connected, readyState:", this.ws?.readyState, "— retrying in 500ms");
+      // Queue and retry once after connection
+      setTimeout(() => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          console.log("[WS] Retry send:", data.type);
+          this.ws.send(JSON.stringify(data));
+        } else {
+          console.error("[WS] Still not connected, message dropped:", data);
+        }
+      }, 500);
     }
   }
 

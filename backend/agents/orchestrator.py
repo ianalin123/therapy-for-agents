@@ -6,6 +6,7 @@ always returns at least one graph node so the frontend can transition.
 """
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from .listener import extract_entities
@@ -67,6 +68,7 @@ async def process_message(
                 name=f"memory_{len(conversation_history)}",
                 episode_body=f"User shared: {user_message}",
                 source_description="user_conversation",
+                reference_time=datetime.now(timezone.utc),
             )
         except Exception as e:
             print(f"Graphiti ingestion error: {e}")

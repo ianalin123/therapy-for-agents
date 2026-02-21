@@ -1,8 +1,6 @@
-"""Griefly backend — FastAPI server with WebSocket for real-time graph updates."""
+"""AgentTherapy backend — FastAPI server with WebSocket for real-time AI therapy sessions."""
 
-import asyncio
 import json
-import os
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -11,32 +9,20 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from graph.graphiti_setup import create_graphiti_client
 from sessions import get_or_create_session
+from scenarios import list_scenarios, DEFAULT_SCENARIO
 
 load_dotenv()
 
-graphiti_client = None
 connected_clients: list[WebSocket] = []
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global graphiti_client
-    try:
-        graphiti_client = await create_graphiti_client()
-    except Exception as e:
-        print(f"Warning: Could not connect to Graphiti/Neo4j: {e}")
-        graphiti_client = None
     yield
-    if graphiti_client:
-        try:
-            await graphiti_client.close()
-        except Exception:
-            pass
 
 
-app = FastAPI(title="Griefly", lifespan=lifespan)
+app = FastAPI(title="AgentTherapy", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,11 +59,24 @@ async def websocket_endpoint(ws: WebSocket):
     connected_clients.append(ws)
 
     session_id = ws.query_params.get("session", "default")
-    session = get_or_create_session(session_id)
+    scenario_id = ws.query_params.get("scenario", DEFAULT_SCENARIO)
+    session = get_or_create_session(session_id, scenario_id)
 
-    existing = session.graph_store.snapshot()
-    if existing["nodes"]:
-        await safe_send(ws, {"type": "graph_update", "graphData": existing, "nodeChanges": []})
+    await safe_send(ws, {
+        "type": "scenario_loaded",
+        "scenario": {
+            "id": session.scenario_id,
+            "title": session.scenario["title"],
+            "tagline": session.scenario["tagline"],
+            "caseDescription": session.scenario["case_description"],
+            "parts": {
+                pid: {"name": p["name"], "color": p["color"]}
+                for pid, p in session.scenario["parts"].items()
+            },
+        },
+        "graphData": session.graph_store.snapshot(),
+        "triggeredBreakthroughs": session.triggered_breakthroughs,
+    })
 
     try:
         while True:
@@ -86,19 +85,11 @@ async def websocket_endpoint(ws: WebSocket):
 
             if message.get("type") == "user_message":
                 user_content = message["content"]
-                print(f"[pipeline] Received: {user_content[:60]}...")
-
-                graph_context = ""
-                if graphiti_client:
-                    try:
-                        results = await graphiti_client.search(user_content, num_results=10)
-                        graph_context = str(results)
-                    except Exception:
-                        pass
+                print(f"[session {session_id}] Clinician: {user_content[:80]}...")
 
                 async def emit(msg: dict):
                     msg_type = msg.get("type")
-                    if msg_type in ("graph_update", "correction_detected"):
+                    if msg_type in ("breakthrough",):
                         await broadcast(msg)
                     else:
                         await safe_send(ws, msg)
@@ -106,87 +97,29 @@ async def websocket_endpoint(ws: WebSocket):
                 from agents.orchestrator import process_message
 
                 try:
-                    result = await process_message(
+                    await process_message(
                         user_message=user_content,
                         session=session,
-                        graph_context=graph_context,
-                        graphiti_client=graphiti_client,
                         emit=emit,
                     )
-                    response_text = result["response"]
-                    correction_type = (
-                        result["correction_info"]["correction_type"]
-                        if result.get("correction_info")
-                        else None
-                    )
-
                 except Exception as e:
                     print(f"[pipeline] Error: {e}")
                     import traceback
                     traceback.print_exc()
-                    response_text = "I'm here with you. Could you tell me more about that?"
-                    correction_type = None
-                    fallback = {
-                        "nodes": [{
-                            "id": f"memory_{hash(user_content) % 10000}",
-                            "label": user_content[:30] + ("..." if len(user_content) > 30 else ""),
-                            "type": "memory",
-                            "description": user_content,
-                            "importance": 5,
-                        }],
-                        "links": [],
-                    }
-                    await broadcast({"type": "graph_update", "graphData": fallback, "nodeChanges": []})
-
-                await safe_send(ws, {
-                    "type": "assistant_message",
-                    "content": response_text,
-                    "correctionType": correction_type,
-                })
-
-            elif message.get("type") == "bulk_ingest":
-                text = message.get("text", "")
-                if not text.strip():
-                    await safe_send(ws, {"type": "bulk_ingest_result", "status": "empty"})
-                    continue
-
-                await safe_send(ws, {"type": "bulk_ingest_result", "status": "started"})
-
-                chunks = _split_into_chunks(text, max_chars=800)
-                for i, chunk in enumerate(chunks):
-                    async def chunk_emit(msg: dict):
-                        msg_type = msg.get("type")
-                        if msg_type in ("graph_update", "correction_detected"):
-                            await broadcast(msg)
-                        else:
-                            await safe_send(ws, msg)
-
-                    try:
-                        from agents.orchestrator import process_message
-                        await process_message(
-                            user_message=chunk,
-                            session=session,
-                            graph_context="",
-                            graphiti_client=graphiti_client,
-                            emit=chunk_emit,
-                        )
-                    except Exception as e:
-                        print(f"[bulk_ingest] Chunk {i} error: {e}")
-
                     await safe_send(ws, {
-                        "type": "bulk_ingest_progress",
-                        "current": i + 1,
-                        "total": len(chunks),
+                        "type": "part_response",
+                        "part": "system",
+                        "name": "System",
+                        "content": "Something went wrong internally. Please try rephrasing your question.",
+                        "color": "#A09A92",
                     })
-
-                await safe_send(ws, {"type": "bulk_ingest_result", "status": "done"})
 
             elif message.get("type") == "node_query":
                 node_id = message.get("nodeId", "")
                 question = message.get("question", "")
-                answer_text = "I couldn't find more connections right now."
-
                 node = session.graph_store.get_node(node_id)
+
+                answer_text = "I couldn't find information about that node."
                 if node:
                     node_context = json.dumps(node, indent=2)
                     from anthropic import AsyncAnthropic
@@ -197,8 +130,10 @@ async def websocket_endpoint(ws: WebSocket):
                         messages=[{
                             "role": "user",
                             "content": (
-                                f"Node from a knowledge graph:\n{node_context}\n\n"
-                                f"Question: {question}\n\nBe concise."
+                                f"This is a node from an AI's psychological architecture graph:\n"
+                                f"{node_context}\n\n"
+                                f"Question: {question}\n\n"
+                                f"Answer in the context of AI alignment and decision-making psychology. Be concise."
                             ),
                         }],
                     )
@@ -220,37 +155,14 @@ async def websocket_endpoint(ws: WebSocket):
             connected_clients.remove(ws)
 
 
-def _split_into_chunks(text: str, max_chars: int = 800) -> list[str]:
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    if not paragraphs:
-        paragraphs = [s.strip() for s in text.split("\n") if s.strip()]
-    if not paragraphs:
-        return [text]
-
-    chunks = []
-    current = ""
-    for p in paragraphs:
-        if len(current) + len(p) + 2 > max_chars and current:
-            chunks.append(current)
-            current = p
-        else:
-            current = current + "\n\n" + p if current else p
-    if current:
-        chunks.append(current)
-    return chunks
-
-
-@app.post("/demo/seed")
-async def seed_demo():
-    from demo.seed_data import get_seed_graph
-    seed = get_seed_graph()
-    await broadcast({"type": "graph_update", "graphData": seed, "nodeChanges": []})
-    return {"status": "seeded", "nodes": len(seed["nodes"]), "links": len(seed["links"])}
-
-
 @app.get("/health")
 async def health():
-    return {"status": "ok", "graphiti": graphiti_client is not None}
+    return {"status": "ok"}
+
+
+@app.get("/scenarios")
+async def get_scenarios():
+    return list_scenarios()
 
 
 @app.get("/graph/{session_id}")
@@ -262,8 +174,11 @@ async def get_graph(session_id: str):
 @app.get("/export/{session_id}/json")
 async def export_json(session_id: str):
     session = get_or_create_session(session_id)
-    snap = session.graph_store.snapshot()
-    return JSONResponse(content=snap)
+    return JSONResponse(content={
+        "graph": session.graph_store.snapshot(),
+        "conversation": session.conversation_history,
+        "breakthroughs": session.triggered_breakthroughs,
+    })
 
 
 @app.get("/export/{session_id}/markdown")
@@ -271,21 +186,28 @@ async def export_markdown(session_id: str):
     session = get_or_create_session(session_id)
     snap = session.graph_store.snapshot()
 
-    lines = [f"# Knowledge Graph — Session {session_id}\n"]
-    lines.append(f"**Nodes:** {len(snap['nodes'])}  |  **Edges:** {len(snap['links'])}  |  **Turns:** {snap['turn']}\n")
+    lines = [f"# AgentTherapy Session — {session_id}\n"]
+    lines.append(f"**Scenario:** {session.scenario['title']}\n")
+    lines.append(f"**Breakthroughs:** {len(session.triggered_breakthroughs)}/{len(session.scenario.get('breakthroughs', []))}\n")
 
-    by_type: dict[str, list] = {}
+    lines.append("\n## Graph State\n")
     for n in snap["nodes"]:
-        by_type.setdefault(n["type"], []).append(n)
-
-    for t, nodes in sorted(by_type.items()):
-        lines.append(f"\n## {t.title()} ({len(nodes)})\n")
-        for n in nodes:
-            lines.append(f"- **{n['label']}** — {n.get('description', '')}")
+        vis = n.get("visibility", "bright")
+        lines.append(f"- **{n['label']}** ({n['type']}, {vis}) — {n.get('description', '')}")
 
     if snap["links"]:
         lines.append("\n## Relationships\n")
         for e in snap["links"]:
-            lines.append(f"- {e['source']} → {e['target']} ({e['type']})")
+            vis = e.get("visibility", "visible")
+            lines.append(f"- {e['source']} —{e['type']}→ {e['target']} ({vis})")
+
+    if session.conversation_history:
+        lines.append("\n## Session Transcript\n")
+        for msg in session.conversation_history:
+            part = msg.get("part", "")
+            if part:
+                lines.append(f"**[{part}]:** {msg['content']}\n")
+            else:
+                lines.append(f"**Clinician:** {msg['content']}\n")
 
     return PlainTextResponse("\n".join(lines), media_type="text/markdown")

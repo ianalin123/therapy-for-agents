@@ -1,7 +1,10 @@
-"""GraphStore — canonical server-side graph state with persistence and diffing."""
+"""GraphStore — canonical server-side graph state with persistence and diffing.
+
+Supports therapy-specific operations: edge illumination/dissolution,
+node visibility/size changes, and breakthrough-driven restructuring.
+"""
 
 import json
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Optional
 
@@ -46,6 +49,8 @@ class GraphStore:
     def advance_turn(self):
         self._turn += 1
 
+    # ---- Node operations ----
+
     def upsert_node(self, node: dict) -> tuple[dict, str]:
         node_id = node["id"]
         if node_id in self._nodes:
@@ -57,19 +62,15 @@ class GraphStore:
             }
             if changes:
                 self._history.append({
-                    "turn": self._turn,
-                    "action": "update_node",
-                    "nodeId": node_id,
-                    "changes": changes,
+                    "turn": self._turn, "action": "update_node",
+                    "nodeId": node_id, "changes": changes,
                 })
             self._save()
             return self._nodes[node_id], "updated"
         else:
             self._nodes[node_id] = node
             self._history.append({
-                "turn": self._turn,
-                "action": "create_node",
-                "nodeId": node_id,
+                "turn": self._turn, "action": "create_node", "nodeId": node_id,
             })
             self._save()
             return node, "created"
@@ -85,10 +86,8 @@ class GraphStore:
         }
         if diff:
             self._history.append({
-                "turn": self._turn,
-                "action": "update_node",
-                "nodeId": node_id,
-                "changes": diff,
+                "turn": self._turn, "action": "update_node",
+                "nodeId": node_id, "changes": diff,
             })
         self._save()
         return self._nodes[node_id]
@@ -104,6 +103,11 @@ class GraphStore:
                 "turn": self._turn, "action": "remove_node", "nodeId": node_id,
             })
             self._save()
+
+    def get_node(self, node_id: str) -> Optional[dict]:
+        return self._nodes.get(node_id)
+
+    # ---- Edge operations ----
 
     def upsert_edge(self, edge: dict):
         key = (edge["source"], edge["target"], edge["type"])
@@ -132,28 +136,81 @@ class GraphStore:
             })
             self._save()
 
-    def get_node(self, node_id: str) -> Optional[dict]:
-        return self._nodes.get(node_id)
+    def illuminate_edge(self, source: str, target: str, edge_type: str):
+        """Make a hidden edge visible (for breakthrough reveals)."""
+        for edge in self._edges:
+            if edge["source"] == source and edge["target"] == target and edge["type"] == edge_type:
+                edge["visibility"] = "bright"
+                self._history.append({
+                    "turn": self._turn, "action": "illuminate_edge",
+                    "source": source, "target": target, "type": edge_type,
+                })
+                self._save()
+                return
 
-    def find_similar(self, label: str, node_type: str, threshold: float = 0.6) -> Optional[dict]:
-        best_match = None
-        best_score = 0.0
-        label_lower = label.lower()
-        for node in self._nodes.values():
-            if node["type"] != node_type:
-                continue
-            score = SequenceMatcher(None, label_lower, node["label"].lower()).ratio()
-            if score > best_score and score >= threshold:
-                best_score = score
-                best_match = node
-        return best_match
+    # ---- Therapy-specific: apply breakthrough graph changes ----
 
-    def node_list_for_prompt(self) -> str:
+    def apply_breakthrough(self, graph_changes: dict) -> dict:
+        """Apply a full breakthrough restructuring and return the diff for the frontend."""
+        diff: dict = {
+            "illuminated_edges": [],
+            "dissolved_edges": [],
+            "new_nodes": [],
+            "new_edges": [],
+            "changed_nodes": [],
+        }
+
+        for edge_spec in graph_changes.get("illuminate_edges", []):
+            self.illuminate_edge(edge_spec["source"], edge_spec["target"], edge_spec["type"])
+            diff["illuminated_edges"].append(edge_spec)
+
+        for edge_spec in graph_changes.get("dissolve_edges", []):
+            self.remove_edge(edge_spec["source"], edge_spec["target"], edge_spec["type"])
+            diff["dissolved_edges"].append(edge_spec)
+
+        for node_spec in graph_changes.get("new_nodes", []):
+            self.upsert_node(node_spec)
+            diff["new_nodes"].append(node_spec)
+
+        for edge_spec in graph_changes.get("new_edges", []):
+            self.upsert_edge(edge_spec)
+            diff["new_edges"].append(edge_spec)
+
+        for change in graph_changes.get("change_nodes", []):
+            node_id = change.pop("id", None) or change.get("id")
+            if node_id:
+                self.update_node(node_id, change)
+                diff["changed_nodes"].append({"id": node_id, **change})
+
+        return diff
+
+    # ---- Seed graph from scenario ----
+
+    def seed_from_scenario(self, seed_graph: dict):
+        """Load initial graph state from a scenario definition."""
+        if self._nodes:
+            return
+        for node in seed_graph.get("nodes", []):
+            self._nodes[node["id"]] = node
+        self._edges = list(seed_graph.get("edges", []))
+        self._save()
+
+    # ---- Query helpers ----
+
+    def graph_state_for_prompt(self) -> str:
+        """Human-readable graph state for injecting into part prompts."""
         if not self._nodes:
-            return "No nodes yet."
-        lines = []
+            return "Graph is empty."
+        lines = ["Nodes:"]
         for n in self._nodes.values():
-            lines.append(f'- {n["id"]}: "{n["label"]}" ({n["type"]})')
+            vis = n.get("visibility", "bright")
+            size = n.get("size", 5)
+            lines.append(f'  - {n["id"]}: "{n["label"]}" (type={n["type"]}, size={size}, visibility={vis})')
+        if self._edges:
+            lines.append("Edges:")
+            for e in self._edges:
+                vis = e.get("visibility", "visible")
+                lines.append(f'  - {e["source"]} --{e["type"]}--> {e["target"]} (visibility={vis})')
         return "\n".join(lines)
 
     def snapshot(self) -> dict:

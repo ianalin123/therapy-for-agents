@@ -7,6 +7,7 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --animate-orb-breathe: orb-breathe 4s ease-in-out infinite;
   --animate-orb-ring: orb-ring 4s ease-in-out infinite;
+  --animate-correction-in: correction-in 300ms ease-out forwards;
 }
 
 @layer base {
@@ -37,6 +38,11 @@
 /* Focus styling — needs to beat Tailwind so stays unlayered */
 input:focus {
   border-color: rgba(232, 169, 75, 0.4) !important;
+}
+
+@keyframes correction-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 @keyframes correction-pulse {

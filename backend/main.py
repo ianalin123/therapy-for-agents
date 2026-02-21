@@ -46,17 +46,15 @@ app.add_middleware(
 
 
 async def safe_send(ws: WebSocket, data: dict[str, Any]):
-    """Send to a single WebSocket, ignoring if already closed."""
     try:
         await ws.send_text(json.dumps(data))
     except (WebSocketDisconnect, RuntimeError):
         pass
 
 
-async def broadcast_graph_update(data: dict[str, Any]):
-    """Push graph updates to all connected frontend clients."""
-    message = json.dumps(data)
+async def broadcast(data: dict[str, Any]):
     disconnected = []
+    message = json.dumps(data)
     for client in connected_clients:
         try:
             await client.send_text(message)
@@ -69,7 +67,6 @@ async def broadcast_graph_update(data: dict[str, Any]):
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    """WebSocket endpoint for real-time graph updates + chat."""
     await ws.accept()
     connected_clients.append(ws)
     try:
@@ -79,9 +76,9 @@ async def websocket_endpoint(ws: WebSocket):
 
             if message.get("type") == "user_message":
                 user_content = message["content"]
-                print(f"[pipeline] Received message: {user_content[:50]}...")
+                print(f"[pipeline] Received: {user_content[:60]}...")
 
-                # Get graph context from Graphiti
+                # Graphiti context search (non-blocking if no client)
                 graph_context = ""
                 if graphiti_client:
                     try:
@@ -92,13 +89,21 @@ async def websocket_endpoint(ws: WebSocket):
                     except Exception:
                         pass
 
-                # Build fallback graph data in case pipeline fails
-                fallback_node_id = f"memory_{hash(user_content) % 10000}"
-                fallback_label = user_content[:30] + ("..." if len(user_content) > 30 else "")
+                # Streaming emit: sends each agent event directly to this client
+                # and broadcasts graph_update / correction_detected to all clients
+                async def emit(msg: dict):
+                    msg_type = msg.get("type")
+                    if msg_type in ("graph_update", "correction_detected"):
+                        await broadcast(msg)
+                    else:
+                        await safe_send(ws, msg)
+
+                from agents.orchestrator import process_message
+
                 fallback_graph = {
                     "nodes": [{
-                        "id": fallback_node_id,
-                        "label": fallback_label,
+                        "id": f"memory_{hash(user_content) % 10000}",
+                        "label": user_content[:30] + ("..." if len(user_content) > 30 else ""),
                         "type": "memory",
                         "description": user_content,
                         "importance": 5,
@@ -106,19 +111,15 @@ async def websocket_endpoint(ws: WebSocket):
                     "links": [],
                 }
 
-                # Process through agent pipeline
-                from agents.orchestrator import process_message
-
                 try:
                     result = await process_message(
                         user_message=user_content,
                         graph_context=graph_context,
                         graphiti_client=graphiti_client,
+                        emit=emit,
                     )
-                    print(f"[pipeline] Got result — nodes: {len(result['graph_updates']['nodes'])}, response length: {len(result['response'])}")
 
                     response_text = result["response"]
-                    graph_data = result["graph_updates"]
                     correction_type = (
                         result["correction_info"]["correction_type"]
                         if result.get("correction_info")
@@ -126,38 +127,20 @@ async def websocket_endpoint(ws: WebSocket):
                     )
 
                 except Exception as e:
-                    print(f"[pipeline] Agent pipeline error: {e}")
+                    print(f"[pipeline] Error: {e}")
                     import traceback
                     traceback.print_exc()
 
                     response_text = "I'm here with you. Could you tell me more about that?"
-                    graph_data = fallback_graph
                     correction_type = None
+                    await broadcast({"type": "graph_update", "graphData": fallback_graph})
 
-                # Ensure we always have at least one node
-                if not graph_data.get("nodes"):
-                    print("[pipeline] No nodes from pipeline, using fallback")
-                    graph_data = fallback_graph
-
-                # Send graph_update FIRST (so frontend transitions before showing response)
-                graph_msg = {"type": "graph_update", "graphData": graph_data}
-                print(f"[pipeline] Sending graph_update with {len(graph_data['nodes'])} nodes")
-                await safe_send(ws, graph_msg)
-
-                # Then send assistant response
+                # Send assistant response (graph_update was already sent by orchestrator)
                 await safe_send(ws, {
                     "type": "assistant_message",
                     "content": response_text,
                     "correctionType": correction_type,
                 })
-                print(f"[pipeline] Sent assistant_message")
-
-                # If correction was detected, send correction event
-                if correction_type in ("productive", "clarifying"):
-                    await broadcast_graph_update({
-                        "type": "correction_detected",
-                        "correctionType": correction_type,
-                    })
 
             elif message.get("type") == "node_query":
                 node_id = message.get("nodeId", "")
@@ -181,10 +164,10 @@ async def websocket_endpoint(ws: WebSocket):
                             messages=[{
                                 "role": "user",
                                 "content": (
-                                    f"Based on this context from a grief memorial knowledge graph:\n"
+                                    f"Based on this context from a knowledge graph:\n"
                                     f"{answer_context}\n\n"
                                     f"Answer this question about node '{node_id}': {question}\n\n"
-                                    f"Be warm, concise, and draw connections between memories."
+                                    f"Be concise and draw connections between nodes."
                                 ),
                             }],
                         )
@@ -201,18 +184,18 @@ async def websocket_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         if ws in connected_clients:
             connected_clients.remove(ws)
-
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        if ws in connected_clients:
+            connected_clients.remove(ws)
 
 
 @app.post("/demo/seed")
 async def seed_demo():
-    """Pre-populate graph with demo memories for presentation."""
     from demo.seed_data import get_seed_graph
     seed = get_seed_graph()
-    await broadcast_graph_update({
-        "type": "graph_update",
-        "graphData": seed,
-    })
+    await broadcast({"type": "graph_update", "graphData": seed})
     return {"status": "seeded", "nodes": len(seed["nodes"]), "links": len(seed["links"])}
 
 
@@ -223,7 +206,6 @@ async def health():
 
 @app.get("/graph")
 async def get_graph():
-    """Return current graph state for initial frontend render."""
     if not graphiti_client:
         return {"nodes": [], "edges": []}
     try:

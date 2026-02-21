@@ -19,3 +19,4 @@ venv/
 
 # LLM cache
 llm_cache/
+/.cursor

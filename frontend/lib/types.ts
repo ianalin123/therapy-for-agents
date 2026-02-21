@@ -39,6 +39,38 @@ export interface WSMessage {
   answer?: string;
 }
 
+export type AgentName = "listener" | "learner" | "reflector" | "guardian";
+
+export interface AgentStatus {
+  agent: AgentName;
+  status: "idle" | "running" | "done" | "error";
+  summary?: string;
+  durationMs?: number;
+}
+
+export interface CorrectionEvent {
+  correctionType: "productive" | "clarifying";
+  beforeClaim: string;
+  afterInsight: string;
+  learnerReflection: string;
+  newMemoryUnlocked: boolean;
+  affectedNodeIds: string[];
+}
+
+export interface GraphSnapshot {
+  timestamp: number;
+  nodeCount: number;
+  linkCount: number;
+  wasCorrection: boolean;
+}
+
+export const AGENT_COLORS: Record<AgentName, string> = {
+  listener: "#7B9FD4",
+  learner: "#E8A94B",
+  reflector: "#C47B8A",
+  guardian: "#7BAF8A",
+};
+
 export const NODE_COLORS: Record<GraphNode["type"], string> = {
   memory: "#E8A94B",
   person: "#F0EDE8",

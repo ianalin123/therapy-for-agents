@@ -13,8 +13,8 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "Griefly — Remember What Matters",
-  description: "An AI grief companion that helps you become the author of what someone meant.",
+  title: "AgentTherapy — Put AI on the Couch",
+  description: "Interrogate AI decision-making through therapeutic questioning. Map the hidden psychology behind AI behavior.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

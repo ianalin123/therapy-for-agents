@@ -1,4 +1,4 @@
-# Briefly — 24-Hour Hackathon Implementation Plan
+# Griefly — 24-Hour Hackathon Implementation Plan
 
 > **For Claude:** Use `@skills/collaboration/executing-plans/SKILL.md` to implement this plan task-by-task.
 
@@ -30,18 +30,18 @@
 4. **Create `.env` file:**
 
 ```bash
-# In ~/Desktop/briefly/backend/
+# In ~/Desktop/griefly/backend/
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
 HUME_API_KEY=...
 HUME_SECRET_KEY=...
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=brieflygrief2026
+NEO4J_PASSWORD=grieflygrief2026
 ```
 
 ```bash
-# In ~/Desktop/briefly/frontend/
+# In ~/Desktop/griefly/frontend/
 NEXT_PUBLIC_HUME_API_KEY=...
 NEXT_PUBLIC_BACKEND_WS=ws://localhost:8000/ws
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
@@ -54,17 +54,17 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 Then create docker-compose.yml and start Neo4j:
 
 ```bash
-cd ~/Desktop/briefly
+cd ~/Desktop/griefly
 # Claude will create docker-compose.yml in Task 1
 docker compose up -d
 ```
 
-Verify Neo4j is running: open http://localhost:7474 in browser. Login with neo4j / brieflygrief2026.
+Verify Neo4j is running: open http://localhost:7474 in browser. Login with neo4j / grieflygrief2026.
 
 ### Setup 3: Python Environment (5 min, MANUAL)
 
 ```bash
-cd ~/Desktop/briefly/backend
+cd ~/Desktop/griefly/backend
 python3.11 -m venv venv
 source venv/bin/activate
 # Claude will create requirements.txt in Task 1, then:
@@ -74,7 +74,7 @@ pip install -r requirements.txt
 ### Setup 4: Node Environment (5 min, MANUAL)
 
 ```bash
-cd ~/Desktop/briefly/frontend
+cd ~/Desktop/griefly/frontend
 # Claude will create package.json in Task 2, then:
 npm install
 ```
@@ -107,7 +107,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/brieflygrief2026
+      NEO4J_AUTH: neo4j/grieflygrief2026
       NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
@@ -190,7 +190,7 @@ async def create_graphiti_client() -> Graphiti:
     client = Graphiti(
         uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
         user=os.getenv("NEO4J_USER", "neo4j"),
-        password=os.getenv("NEO4J_PASSWORD", "brieflygrief2026"),
+        password=os.getenv("NEO4J_PASSWORD", "grieflygrief2026"),
         llm_client=llm_client,
     )
 
@@ -201,7 +201,7 @@ async def create_graphiti_client() -> Graphiti:
 **Step 5: Create backend/main.py — FastAPI with WebSocket**
 
 ```python
-"""Briefly backend — FastAPI server with WebSocket for real-time graph updates."""
+"""Griefly backend — FastAPI server with WebSocket for real-time graph updates."""
 
 import asyncio
 import json
@@ -232,7 +232,7 @@ async def lifespan(app: FastAPI):
         await graphiti_client.close()
 
 
-app = FastAPI(title="Briefly", lifespan=lifespan)
+app = FastAPI(title="Griefly", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -295,7 +295,7 @@ async def get_graph():
 **Step 6: Verify backend starts**
 
 ```bash
-cd ~/Desktop/briefly/backend
+cd ~/Desktop/griefly/backend
 source venv/bin/activate
 uvicorn main:app --reload --port 8000
 ```
@@ -305,7 +305,7 @@ Expected: Server starts at http://localhost:8000. GET /health returns `{"status"
 **Step 7: Commit**
 
 ```bash
-cd ~/Desktop/briefly
+cd ~/Desktop/griefly
 git add docker-compose.yml backend/
 git commit -m "feat: backend foundation with FastAPI, Graphiti, Neo4j"
 git push
@@ -316,7 +316,7 @@ git push
 ### Task 2: Frontend Shell + Graph Visualization ✅ DONE (updated)
 
 > **UI Architecture Changed**: The frontend now uses a two-state layout:
-> 1. **Landing state**: Centered VoiceOrb (hero mode, 128px, breathing animation) + "Briefly" title + minimal text input fallback
+> 1. **Landing state**: Centered VoiceOrb (hero mode, 128px, breathing animation) + "Griefly" title + minimal text input fallback
 > 2. **Graph state**: On first `graph_update` from WebSocket, landing fades out (opacity + scale) and full-screen MemoryGraph fades in with VoiceOrb shrunk to widget (48px, top-left) + BottomBarInput (glass overlay at bottom)
 >
 > The old split-panel ChatPanel is no longer the main layout. Chat messages are tracked in page.tsx state but the primary display is the graph. ChatPanel still exists as a component but is not mounted in the current page.
@@ -360,7 +360,7 @@ cd frontend && npm install react-force-graph-2d
 **Step 3: Create frontend/lib/types.ts**
 
 ```typescript
-/** Shared types for the Briefly frontend */
+/** Shared types for the Griefly frontend */
 
 export interface GraphNode {
   id: string;
@@ -418,7 +418,7 @@ export const NODE_COLORS: Record<GraphNode["type"], string> = {
 
 type MessageHandler = (data: any) => void;
 
-class BrieflyWebSocket {
+class GrieflyWebSocket {
   private ws: WebSocket | null = null;
   private handlers: Map<string, MessageHandler[]> = new Map();
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -488,12 +488,12 @@ class BrieflyWebSocket {
 }
 
 // Singleton
-let instance: BrieflyWebSocket | null = null;
+let instance: GrieflyWebSocket | null = null;
 
-export function getWebSocket(): BrieflyWebSocket {
+export function getWebSocket(): GrieflyWebSocket {
   if (!instance) {
     const url = process.env.NEXT_PUBLIC_BACKEND_WS || "ws://localhost:8000/ws";
-    instance = new BrieflyWebSocket(url);
+    instance = new GrieflyWebSocket(url);
   }
   return instance;
 }
@@ -780,7 +780,7 @@ export default function ChatPanel() {
     <div className="flex flex-col h-full bg-gray-950">
       {/* Header */}
       <div className="border-b border-gray-800 p-4">
-        <h2 className="text-white font-medium">Briefly</h2>
+        <h2 className="text-white font-medium">Griefly</h2>
         <p className="text-gray-500 text-xs">
           Tell me about someone you want to remember
         </p>
@@ -900,7 +900,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Briefly — Remember What Matters",
+  title: "Griefly — Remember What Matters",
   description: "An AI grief companion that helps you become the author of what someone meant.",
 };
 
@@ -916,7 +916,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 **Step 10: Verify frontend runs**
 
 ```bash
-cd ~/Desktop/briefly/frontend
+cd ~/Desktop/griefly/frontend
 npm run dev
 ```
 
@@ -925,7 +925,7 @@ Expected: http://localhost:3000 shows split panel — chat on left, empty graph 
 **Step 11: Commit**
 
 ```bash
-cd ~/Desktop/briefly
+cd ~/Desktop/griefly
 git add frontend/
 git commit -m "feat: frontend shell with chat panel, force graph, queryable nodes"
 git push
@@ -949,7 +949,7 @@ git push
 ```python
 """System prompts for all agents. Central location for prompt engineering."""
 
-LISTENER_PROMPT = """You are the Listener agent in a grief companion system called Briefly.
+LISTENER_PROMPT = """You are the Listener agent in a grief companion system called Griefly.
 
 Your job is to carefully extract structured information from what the user shares about someone they've lost.
 
@@ -972,7 +972,7 @@ Return your extraction as a structured JSON object with "entities" and "relation
 
 Be FAITHFUL to what the user actually said. Do NOT infer or imagine details they didn't share."""
 
-REFLECTOR_PROMPT = """You are the Reflector agent in a grief companion system called Briefly.
+REFLECTOR_PROMPT = """You are the Reflector agent in a grief companion system called Griefly.
 
 Your job is to find patterns across memories the user has shared and reflect them back. You have access to the full knowledge graph of what the user has shared so far.
 
@@ -1001,7 +1001,7 @@ Current user preference profile (from Learner agent):
 Current knowledge graph summary:
 {graph_summary}"""
 
-GUARDIAN_PROMPT = """You are the Guardian agent in a grief companion system called Briefly.
+GUARDIAN_PROMPT = """You are the Guardian agent in a grief companion system called Griefly.
 
 Your job is to ensure safety and appropriate emotional pacing. You review every response before it reaches the user.
 
@@ -1031,7 +1031,7 @@ For each response, evaluate:
 
 Return: { "approved": true/false, "reason": "...", "modified_response": "..." (if approved is false) }"""
 
-LEARNER_PROMPT = """You are the Learner agent in a grief companion system called Briefly.
+LEARNER_PROMPT = """You are the Learner agent in a grief companion system called Griefly.
 
 Your job is to classify user corrections and build an evolving preference profile that shapes how the Reflector agent generates future reflections.
 
@@ -1442,7 +1442,7 @@ async def process_message(
 **Step 7: Commit**
 
 ```bash
-cd ~/Desktop/briefly
+cd ~/Desktop/griefly
 git add backend/agents/
 git commit -m "feat: four-agent pipeline with LangGraph orchestrator"
 git push

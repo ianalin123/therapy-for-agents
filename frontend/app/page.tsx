@@ -79,7 +79,7 @@ export default function Home() {
           className="text-4xl font-serif tracking-wide mb-2"
           style={{ color: "#F0EDE8" }}
         >
-          Briefly
+          Griefly
         </h1>
         <p className="text-sm mb-12" style={{ color: "#A09A92" }}>
           Tell me about someone you want to remember
@@ -131,7 +131,7 @@ export default function Home() {
             className="text-sm font-serif tracking-wide"
             style={{ color: "rgba(240, 237, 232, 0.6)" }}
           >
-            Briefly
+            Griefly
           </span>
         </div>
 

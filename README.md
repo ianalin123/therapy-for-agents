@@ -1,8 +1,8 @@
-# Briefly — AI Grief Companion
+# Griefly — AI Grief Companion
 
 > Your founders built the science. We built the most human application of it.
 
-**Briefly** is a multi-agent AI grief companion that helps people process loss through narrative reconstruction. You teach the AI about someone you lost. The AI's deliberate "mistakes" provoke corrections that unlock deeper memories. **The correction IS the therapy.**
+**Griefly** is a multi-agent AI grief companion that helps people process loss through narrative reconstruction. You teach the AI about someone you lost. The AI's deliberate "mistakes" provoke corrections that unlock deeper memories. **The correction IS the therapy.**
 
 This is NOT a griefbot. We don't simulate the deceased. We help the living become the author of what that person meant.
 

@@ -1,4 +1,4 @@
-"""Briefly backend — FastAPI server with WebSocket for real-time graph updates."""
+"""Griefly backend — FastAPI server with WebSocket for real-time graph updates."""
 
 import asyncio
 import json
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="Briefly", lifespan=lifespan)
+app = FastAPI(title="Griefly", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

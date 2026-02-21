@@ -25,7 +25,7 @@ async def create_graphiti_client() -> Graphiti:
     client = Graphiti(
         uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
         user=os.getenv("NEO4J_USER", "neo4j"),
-        password=os.getenv("NEO4J_PASSWORD", "brieflygrief2026"),
+        password=os.getenv("NEO4J_PASSWORD", "grieflygrief2026"),
         llm_client=llm_client,
     )
 

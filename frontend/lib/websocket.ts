@@ -1,6 +1,6 @@
 type MessageHandler = (data: any) => void;
 
-class BrieflyWebSocket {
+class GrieflyWebSocket {
   private ws: WebSocket | null = null;
   private handlers: Map<string, MessageHandler[]> = new Map();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -77,12 +77,12 @@ class BrieflyWebSocket {
   }
 }
 
-let instance: BrieflyWebSocket | null = null;
+let instance: GrieflyWebSocket | null = null;
 
-export function getWebSocket(): BrieflyWebSocket {
+export function getWebSocket(): GrieflyWebSocket {
   if (!instance) {
     const url = process.env.NEXT_PUBLIC_BACKEND_WS || "ws://localhost:8000/ws";
-    instance = new BrieflyWebSocket(url);
+    instance = new GrieflyWebSocket(url);
   }
   return instance;
 }

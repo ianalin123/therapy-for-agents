@@ -13,7 +13,7 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "Briefly — Remember What Matters",
+  title: "Griefly — Remember What Matters",
   description: "An AI grief companion that helps you become the author of what someone meant.",
 };
 

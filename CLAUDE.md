@@ -1,4 +1,4 @@
-# Briefly — AI Grief Companion
+# Griefly — AI Grief Companion
 
 ## What This Is
 
@@ -180,7 +180,7 @@ The Guardian agent enforces these:
 ## File Structure
 
 ```
-briefly/
+griefly/
 ├── CLAUDE.md
 ├── frontend/                    # Next.js app
 │   ├── app/

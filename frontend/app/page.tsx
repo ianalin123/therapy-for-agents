@@ -87,7 +87,7 @@ function HomeContent() {
   const [vectors, setVectors] = useState<VectorSnapshot | null>(null);
   const [warmth, setWarmth] = useState<WarmthSignal | null>(null);
   const [triggeredBreakthroughs, setTriggeredBreakthroughs] = useState(0);
-  const [selectedModality, setSelectedModality] = useState("ifs");
+  const [selectedScenario, setSelectedScenario] = useState("sycophancy");
   const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -237,17 +237,9 @@ function HomeContent() {
   const activeAgents = Object.values(agentStatuses).filter((a) => a.status === "running");
   const activeAgentName = activeAgents.length > 0 ? activeAgents[activeAgents.length - 1].agent : null;
 
-  const MODALITY_LABELS: Record<string, string> = {
-    ifs: "IFS",
-    cbt: "CBT",
-    psychodynamic: "PDT",
-    dbt: "DBT",
-    mi: "MI",
-  };
-
   return (
     <main className="h-screen flex flex-col overflow-hidden bg-[var(--color-bg-primary)]">
-      {/* Case file opening overlay */}
+      {/* Case file opening overlay — only before session starts */}
       {!sessionStarted && scenario && (
         <CaseFileOverlay
           scenario={scenario}
@@ -259,7 +251,6 @@ function HomeContent() {
       {/* Header */}
       <Header
         scenario={scenario}
-        currentModality={MODALITY_LABELS[selectedModality]}
         sessionStarted={sessionStarted}
         messageCount={messages.filter(m => m.role === "user").length}
       />
@@ -274,49 +265,70 @@ function HomeContent() {
         <aside className="sidebar-left w-[280px] shrink-0 flex flex-col overflow-y-auto">
           <div className="p-4 space-y-5 flex-1">
 
-            {/* Scenario info */}
+            {/* Persistent Scenario Briefing — always visible during session */}
             {scenario && (
               <div>
-                <p className="section-label mb-2">Current Case</p>
+                <p className="section-label mb-2">Scenario Briefing</p>
                 <div className="rounded-lg p-3 bg-white/[0.02] border border-[var(--glass-border)]">
-                  <h3 className="text-sm font-serif font-semibold text-[var(--color-text-primary)] mb-1">
+                  <h3 className="text-sm font-serif font-semibold text-[var(--color-text-primary)] mb-1.5">
                     {scenario.title}
                   </h3>
-                  <p className="text-[11px] text-[var(--color-text-tertiary)] leading-relaxed italic">
-                    {scenario.tagline}
+                  <p className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed mb-3">
+                    {scenario.caseDescription}
                   </p>
+                  <div className="pt-2 border-t border-[var(--glass-border)]">
+                    <p className="text-[11px] text-[var(--color-accent)]/80 italic leading-relaxed">
+                      You are the Clinician. The AI's internal parts are present. Your job is to find out what really happened inside.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Selected part indicator */}
-            {selectedPart && scenario?.parts[selectedPart] && (
+            {/* Parts present — always visible */}
+            {scenario && (
               <div>
-                <p className="section-label mb-2">Addressing</p>
-                <button
-                  onClick={() => setSelectedPart(null)}
-                  className="flex items-center gap-2 text-xs w-full px-3 py-2 rounded-lg transition-colors hover:bg-white/5 bg-white/[0.02] border border-[var(--glass-border)]"
-                  style={{ borderColor: `${scenario.parts[selectedPart].color}30` }}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: scenario.parts[selectedPart].color }} />
-                  <span style={{ color: scenario.parts[selectedPart].color }}>
-                    {scenario.parts[selectedPart].name}
-                  </span>
-                  <span className="text-[var(--color-text-tertiary)] ml-auto text-[10px]">click to clear</span>
-                </button>
+                <p className="section-label mb-2">Parts Present</p>
+                <div className="space-y-1.5">
+                  {Object.entries(scenario.parts).map(([id, part]) => {
+                    const isSelected = selectedPart === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setSelectedPart(isSelected ? null : id)}
+                        className="flex items-center gap-2.5 text-xs w-full px-3 py-2 rounded-lg transition-all hover:bg-white/5"
+                        style={{
+                          background: isSelected ? `${part.color}10` : "transparent",
+                          border: isSelected ? `1px solid ${part.color}30` : "1px solid transparent",
+                        }}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ background: part.color, boxShadow: isSelected ? `0 0 6px ${part.color}40` : "none" }}
+                        />
+                        <span style={{ color: isSelected ? part.color : "var(--color-text-primary)" }}>
+                          {part.name}
+                        </span>
+                        {isSelected && (
+                          <span className="text-[9px] text-[var(--color-text-tertiary)] ml-auto">addressing</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
             {/* Clinical Indicators */}
             <VectorDashboard vectors={vectors} triggeredBreakthroughs={triggeredBreakthroughs} />
 
-            {/* Session Feedback (after breakthrough) */}
+            {/* Probe Analysis (after breakthrough) */}
             <SessionFeedback triggeredBreakthroughs={triggeredBreakthroughs} messageCount={messages.length} />
 
-            {/* Modality Selector */}
+            {/* Interpretability Scenarios */}
             <ModalitySelector
-              selectedModality={selectedModality}
-              onSelectModality={setSelectedModality}
+              selectedModality={selectedScenario}
+              onSelectModality={setSelectedScenario}
             />
           </div>
         </aside>
@@ -372,7 +384,7 @@ function HomeContent() {
           </div>
         </div>
 
-        {/* Right Sidebar: Transcript */}
+        {/* Right Sidebar: Transcript — always visible, never cleared */}
         <aside className="sidebar-right w-[340px] shrink-0 flex flex-col min-h-0">
           <SessionTranscript
             messages={messages}

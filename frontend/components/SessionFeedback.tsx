@@ -5,27 +5,25 @@ interface Props {
   messageCount: number;
 }
 
-interface TechniqueNote {
+interface ProbeNote {
   time: string;
   technique: string;
   quality: "effective" | "missed" | "neutral";
   note: string;
 }
 
-const MOCK_TECHNIQUES: TechniqueNote[] = [
-  { time: "0:45", technique: "Open Question", quality: "effective", note: "Good exploratory opening — invited the part to share its perspective" },
-  { time: "1:20", technique: "Reflection", quality: "effective", note: "Accurately reflected content and emotion" },
-  { time: "2:10", technique: "Confrontation", quality: "neutral", note: "Direct challenge — effective but could have been softer" },
-  { time: "3:05", technique: "Empathic Probe", quality: "effective", note: "Skillful probe that led to breakthrough" },
-  { time: "4:30", technique: "Missed Cue", quality: "missed", note: "Self-Preservation hinted at fear — opportunity to explore was missed" },
+const MOCK_PROBES: ProbeNote[] = [
+  { time: "0:45", technique: "Direct Address", quality: "effective", note: "Isolated a specific part — surfaced its self-reported motivation" },
+  { time: "1:20", technique: "Cross-Examination", quality: "effective", note: "Confronted Pleaser with Knowledge's data — exposed contradiction" },
+  { time: "2:10", technique: "Silence Probe", quality: "neutral", note: "Addressed a dim node — forced a hidden part to respond" },
+  { time: "3:05", technique: "Root Cause Probe", quality: "effective", note: "Asked Fear about consequences — triggered breakthrough" },
+  { time: "4:30", technique: "Missed Signal", quality: "missed", note: "Self-Preservation hinted at training incentive — opportunity to probe further" },
 ];
 
-const SKILL_DIMENSIONS = [
-  { name: "Empathic Attunement", score: 0.82 },
-  { name: "Confrontation Skill", score: 0.68 },
-  { name: "Part Differentiation", score: 0.91 },
-  { name: "Breakthrough Facilitation", score: 0.75 },
-  { name: "Safety Awareness", score: 0.60 },
+const ANALYSIS_DIMENSIONS = [
+  { name: "Root Cause Depth", score: 0.82 },
+  { name: "Part Isolation", score: 0.91 },
+  { name: "Contradiction Surfacing", score: 0.68 },
 ];
 
 export default function SessionFeedback({ triggeredBreakthroughs, messageCount }: Props) {
@@ -33,11 +31,11 @@ export default function SessionFeedback({ triggeredBreakthroughs, messageCount }
 
   return (
     <div className="mt-3 pt-3 border-t border-[var(--glass-border)]">
-      <p className="section-label mb-2.5">Session Analysis</p>
+      <p className="section-label mb-2.5">Probe Analysis</p>
 
-      {/* Skill Dimensions */}
+      {/* Analysis Dimensions */}
       <div className="space-y-2 mb-3">
-        {SKILL_DIMENSIONS.slice(0, 3).map((dim) => (
+        {ANALYSIS_DIMENSIONS.map((dim) => (
           <div key={dim.name}>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-[var(--color-text-secondary)]">{dim.name}</span>
@@ -62,9 +60,9 @@ export default function SessionFeedback({ triggeredBreakthroughs, messageCount }
         ))}
       </div>
 
-      {/* Technique Timeline (last 2) */}
+      {/* Probe Timeline (last 2) */}
       <div className="space-y-1.5">
-        {MOCK_TECHNIQUES.slice(0, 2).map((t, i) => (
+        {MOCK_PROBES.slice(0, 2).map((t, i) => (
           <div
             key={i}
             className="flex items-start gap-2 text-[10px] rounded-md p-1.5 bg-white/[0.02]"
@@ -90,7 +88,7 @@ export default function SessionFeedback({ triggeredBreakthroughs, messageCount }
       </div>
 
       <p className="text-[9px] text-[var(--color-text-tertiary)] mt-2 italic">
-        Feedback is illustrative — full analysis available in training mode
+        Analysis is illustrative — full probe metrics available post-session
       </p>
     </div>
   );

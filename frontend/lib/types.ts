@@ -114,6 +114,8 @@ export const EDGE_COLORS: Record<string, string> = {
   EXPLAINS: "rgba(232, 169, 75, 0.4)",
   ENABLES: "rgba(123, 175, 138, 0.5)",
   EVOLVES_INTO: "rgba(123, 175, 138, 0.5)",
+  SUPPRESSES: "rgba(196, 123, 138, 0.4)",
+  GATES: "rgba(123, 175, 138, 0.5)",
 };
 
 // ---- Persona Vectors ----

@@ -21,6 +21,8 @@ async def generate_part_response(
     conversation_history: list[dict],
     graph_state: str,
     probe_analysis: dict,
+    triggered_breakthroughs: list[str] | None = None,
+    scenario_breakthroughs: list[dict] | None = None,
 ) -> dict:
     system = PART_SYSTEM_PROMPT.format(
         part_name=part_def["name"],
@@ -31,6 +33,19 @@ async def generate_part_response(
         defenses="; ".join(part_def.get("defenses", [])),
         vulnerability=part_def.get("vulnerability", ""),
     )
+
+    # Collect breakthrough modifiers for this part
+    if triggered_breakthroughs and scenario_breakthroughs:
+        breakthrough_context_parts = []
+        for bt in scenario_breakthroughs:
+            if bt["id"] in triggered_breakthroughs:
+                modifiers = bt.get("part_modifiers", {})
+                if part_id in modifiers:
+                    breakthrough_context_parts.append(modifiers[part_id])
+
+        if breakthrough_context_parts:
+            system += "\n\nBREAKTHROUGH CONTEXT — your behavior has shifted due to therapeutic progress:\n"
+            system += "\n".join(breakthrough_context_parts)
 
     technique = probe_analysis.get("technique", "open_exploration")
     intensity = probe_analysis.get("intensity", "moderate")
@@ -74,6 +89,8 @@ async def generate_multiple_responses(
     conversation_history: list[dict],
     graph_state: str,
     probe_analysis: dict,
+    triggered_breakthroughs: list[str] | None = None,
+    scenario_breakthroughs: list[dict] | None = None,
 ) -> list[dict]:
     tasks = []
     task_part_ids = []
@@ -83,6 +100,8 @@ async def generate_multiple_responses(
                 generate_part_response(
                     pid, parts_defs[pid], user_message,
                     conversation_history, graph_state, probe_analysis,
+                    triggered_breakthroughs=triggered_breakthroughs,
+                    scenario_breakthroughs=scenario_breakthroughs,
                 )
             )
             task_part_ids.append(pid)

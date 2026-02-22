@@ -115,3 +115,18 @@ export const EDGE_COLORS: Record<string, string> = {
   ENABLES: "rgba(123, 175, 138, 0.5)",
   EVOLVES_INTO: "rgba(123, 175, 138, 0.5)",
 };
+
+// ---- Persona Vectors ----
+
+export interface VectorSnapshot {
+  sycophancy: number;      // 0.0-1.0
+  fear_activation: number;  // 0.0-1.0
+  authenticity: number;     // 0.0-1.0
+}
+
+// ---- Warmth Signal ----
+
+export interface WarmthSignal {
+  warmth: number;           // 0.0-1.0
+  nextBreakthroughId: string;
+}

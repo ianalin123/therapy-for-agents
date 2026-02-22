@@ -35,6 +35,10 @@ DETECTION_TOOLS = [
                     "type": "string",
                     "description": "If triggered: a 1-sentence summary of the insight for display",
                 },
+                "warmth": {
+                    "type": "number",
+                    "description": "How close this exchange came to triggering the breakthrough (0.0 = cold, 0.3 = warming, 0.6 = hot, 1.0 = triggered). Even if not triggered, estimate progress.",
+                },
             },
             "required": ["triggered", "reasoning"],
         },
@@ -48,7 +52,7 @@ async def detect_breakthrough(
     latest_probe: str,
     latest_responses: list[dict],
     triggered_breakthroughs: list[str],
-) -> dict | None:
+) -> dict:
     breakthroughs = scenario.get("breakthroughs", [])
 
     next_breakthrough = None
@@ -58,7 +62,7 @@ async def detect_breakthrough(
             break
 
     if not next_breakthrough:
-        return None
+        return {"triggered": False, "warmth": 0.0}
 
     bt_descriptions = "\n".join(
         f"- {bt['id']}: {bt['description']} "
@@ -110,6 +114,8 @@ async def detect_breakthrough(
             result = block.input
             if result.get("triggered"):
                 return {
+                    "triggered": True,
+                    "warmth": 1.0,
                     "breakthrough_id": next_breakthrough["id"],
                     "name": next_breakthrough["name"],
                     "description": next_breakthrough["description"],
@@ -117,7 +123,10 @@ async def detect_breakthrough(
                     "graph_changes": next_breakthrough.get("graph_changes", {}),
                     "reasoning": result.get("reasoning", ""),
                 }
-            return None
+            return {
+                "triggered": False,
+                "warmth": result.get("warmth", 0.0),
+            }
 
     logger.warning("InsightDetector did not return tool_use block")
-    return None
+    return {"triggered": False, "warmth": 0.0}

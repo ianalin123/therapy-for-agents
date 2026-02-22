@@ -8,9 +8,12 @@ import Header from "@/components/Header";
 import AgentStatusBar from "@/components/AgentStatusBar";
 import CaseFileOverlay from "@/components/CaseFileOverlay";
 import SessionTranscript from "@/components/SessionTranscript";
+import VectorDashboard from "@/components/graph/VectorDashboard";
+import WarmthIndicator from "@/components/WarmthIndicator";
 import {
   ChatMessage, ScenarioInfo, BreakthroughEvent,
   GraphData, GraphNode, GraphEdge, AgentStatus, SpeechBubble,
+  VectorSnapshot, WarmthSignal,
 } from "@/lib/types";
 import { getWebSocket } from "@/lib/websocket";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -70,6 +73,9 @@ function HomeContent() {
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [vectors, setVectors] = useState<VectorSnapshot | null>(null);
+  const [warmth, setWarmth] = useState<WarmthSignal | null>(null);
+  const [triggeredBreakthroughs, setTriggeredBreakthroughs] = useState(0);
   const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -81,6 +87,9 @@ function HomeContent() {
       const snap = data.graphData;
       if (snap?.nodes) {
         setGraphData({ nodes: snap.nodes, links: snap.links || [] });
+      }
+      if (data.triggeredBreakthroughs) {
+        setTriggeredBreakthroughs(data.triggeredBreakthroughs.length);
       }
     };
 
@@ -117,6 +126,7 @@ function HomeContent() {
 
     const onBreakthrough = (data: any) => {
       setBreakthrough(data);
+      setTriggeredBreakthroughs(prev => prev + 1);
 
       const snap = data.fullSnapshot;
       if (snap?.nodes) {
@@ -136,16 +146,28 @@ function HomeContent() {
       }));
     };
 
+    const onVectorSnapshot = (data: any) => {
+      setVectors(data.vectors);
+    };
+
+    const onWarmthSignal = (data: any) => {
+      setWarmth({ warmth: data.warmth, nextBreakthroughId: data.nextBreakthroughId });
+    };
+
     ws.on("scenario_loaded", onScenarioLoaded);
     ws.on("part_response", onPartResponse);
     ws.on("breakthrough", onBreakthrough);
     ws.on("agent_status", onAgentStatus);
+    ws.on("vector_snapshot", onVectorSnapshot);
+    ws.on("warmth_signal", onWarmthSignal);
 
     return () => {
       ws.off("scenario_loaded", onScenarioLoaded);
       ws.off("part_response", onPartResponse);
       ws.off("breakthrough", onBreakthrough);
       ws.off("agent_status", onAgentStatus);
+      ws.off("vector_snapshot", onVectorSnapshot);
+      ws.off("warmth_signal", onWarmthSignal);
       ws.disconnect();
     };
   }, []);
@@ -208,6 +230,8 @@ function HomeContent() {
       <Header scenario={scenario} />
       <AgentStatusBar agents={activeAgents} />
 
+      <VectorDashboard vectors={vectors} triggeredBreakthroughs={triggeredBreakthroughs} />
+
       {/* Selected part indicator */}
       {selectedPart && scenario?.parts[selectedPart] && (
         <div className="absolute top-14 left-4 z-20">
@@ -239,6 +263,8 @@ function HomeContent() {
       </div>
 
       <SessionTranscript messages={messages} isProcessing={isProcessing} />
+
+      <WarmthIndicator warmth={warmth} />
 
       {/* Input bar */}
       <div className="absolute bottom-0 inset-x-0 z-20">

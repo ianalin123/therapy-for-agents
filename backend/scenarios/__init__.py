@@ -1,9 +1,11 @@
 """Scenario loader — maps scenario IDs to definitions."""
 
 from .the_sycophant import SCENARIO as THE_SYCOPHANT
+from .the_confabulator import SCENARIO as THE_CONFABULATOR
 
 SCENARIOS: dict[str, dict] = {
     "the_sycophant": THE_SYCOPHANT,
+    "the_confabulator": THE_CONFABULATOR,
 }
 
 DEFAULT_SCENARIO = "the_sycophant"

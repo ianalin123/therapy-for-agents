@@ -110,7 +110,7 @@ export default function TherapyGraph({
       if (n.x == null || n.y == null || !isFinite(n.x) || !isFinite(n.y)) return;
       const now = Date.now();
 
-      const nodeColor = n.color || NODE_COLORS[n.type] || "#A09A92";
+      const nodeColor = n.color || NODE_COLORS[n.type] || "#8A857E";
       const baseSize = n.size || 6;
       const isDim = n.visibility === "dim";
       const isSelected = selectedPart === n.id;
@@ -130,37 +130,39 @@ export default function TherapyGraph({
           ctx.beginPath();
           ctx.arc(n.x, n.y, glowRadius, 0, 2 * Math.PI);
           ctx.strokeStyle = nodeColor + Math.round((1 - t) * 128).toString(16).padStart(2, "0");
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
       }
 
       const effectiveSize = baseSize * bloomScale;
-      const alpha = isDim ? 0.35 : 1;
+      const alpha = isDim ? 0.3 : 1;
 
-      // Outer glow
-      const gradient = ctx.createRadialGradient(n.x, n.y, effectiveSize * 0.5, n.x, n.y, effectiveSize * 3);
-      gradient.addColorStop(0, nodeColor + (isDim ? "15" : "40"));
+      // Outer glow — softer
+      const gradient = ctx.createRadialGradient(n.x, n.y, effectiveSize * 0.5, n.x, n.y, effectiveSize * 2.5);
+      gradient.addColorStop(0, nodeColor + (isDim ? "10" : "25"));
       gradient.addColorStop(1, nodeColor + "00");
       ctx.beginPath();
-      ctx.arc(n.x, n.y, effectiveSize * 3, 0, 2 * Math.PI);
+      ctx.arc(n.x, n.y, effectiveSize * 2.5, 0, 2 * Math.PI);
       ctx.fillStyle = gradient;
       ctx.fill();
 
       // Selection ring
       if (isSelected) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, effectiveSize + 4, 0, 2 * Math.PI);
-        ctx.strokeStyle = nodeColor + "90";
-        ctx.lineWidth = 2;
+        ctx.arc(n.x, n.y, effectiveSize + 3, 0, 2 * Math.PI);
+        ctx.strokeStyle = nodeColor + "70";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
         ctx.stroke();
+        ctx.setLineDash([]);
 
-        const pulseT = (now % 2000) / 2000;
-        const pulseR = effectiveSize + 4 + pulseT * 8;
+        const pulseT = (now % 2500) / 2500;
+        const pulseR = effectiveSize + 3 + pulseT * 10;
         ctx.beginPath();
         ctx.arc(n.x, n.y, pulseR, 0, 2 * Math.PI);
-        ctx.strokeStyle = nodeColor + Math.round((1 - pulseT) * 80).toString(16).padStart(2, "0");
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = nodeColor + Math.round((1 - pulseT) * 60).toString(16).padStart(2, "0");
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
 
@@ -173,10 +175,10 @@ export default function TherapyGraph({
 
       // Inner highlight
       const innerGrad = ctx.createRadialGradient(
-        n.x - effectiveSize * 0.3, n.y - effectiveSize * 0.3, 0,
+        n.x - effectiveSize * 0.25, n.y - effectiveSize * 0.25, 0,
         n.x, n.y, effectiveSize,
       );
-      innerGrad.addColorStop(0, "rgba(255,255,255,0.3)");
+      innerGrad.addColorStop(0, "rgba(255,255,255,0.25)");
       innerGrad.addColorStop(1, "rgba(255,255,255,0)");
       ctx.beginPath();
       ctx.arc(n.x, n.y, effectiveSize, 0, 2 * Math.PI);
@@ -185,12 +187,12 @@ export default function TherapyGraph({
       ctx.globalAlpha = 1;
 
       // Label
-      const fontSize = Math.max(12 / globalScale, 2.5);
-      ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+      const fontSize = Math.max(11 / globalScale, 2.5);
+      ctx.font = `500 ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.globalAlpha = isDim ? 0.4 : 0.9;
-      ctx.fillStyle = "#F0EDE8";
+      ctx.globalAlpha = isDim ? 0.35 : 0.85;
+      ctx.fillStyle = "#E8E5E0";
       ctx.fillText(n.label, n.x, n.y + effectiveSize + 4);
       ctx.globalAlpha = 1;
     },
@@ -211,7 +213,7 @@ export default function TherapyGraph({
 
       if (isHidden || isDissolved) return;
 
-      const color = EDGE_COLORS[link.type] || "rgba(240, 237, 232, 0.15)";
+      const color = EDGE_COLORS[link.type] || "rgba(232, 229, 224, 0.1)";
 
       if (isIlluminated) {
         const now = Date.now();
@@ -222,15 +224,15 @@ export default function TherapyGraph({
         ctx.beginPath();
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
-        ctx.strokeStyle = `rgba(232, 169, 75, ${pulseAlpha})`;
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = `rgba(212, 168, 83, ${pulseAlpha})`;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
       } else {
         ctx.beginPath();
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
 
@@ -238,11 +240,11 @@ export default function TherapyGraph({
       if (link.label) {
         const midX = (source.x + target.x) / 2;
         const midY = (source.y + target.y) / 2;
-        const fontSize = Math.max(9 / globalScale, 2);
-        ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
+        const fontSize = Math.max(8 / globalScale, 1.8);
+        ctx.font = `400 ${fontSize}px Inter, system-ui, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = isIlluminated ? "rgba(232, 169, 75, 0.8)" : "rgba(240, 237, 232, 0.3)";
+        ctx.fillStyle = isIlluminated ? "rgba(212, 168, 83, 0.7)" : "rgba(232, 229, 224, 0.2)";
         ctx.fillText(link.label, midX, midY);
       }
     },
@@ -259,7 +261,7 @@ export default function TherapyGraph({
     [onNodeClick],
   );
 
-  // Visible speech bubbles: last bubble per part, max 3 total, recent 15s
+  // Visible speech bubbles
   const visibleBubbles = speechBubbles
     .filter((b) => Date.now() - b.timestamp < BUBBLE_VISIBLE_MS)
     .reduce((acc, b) => {
@@ -269,7 +271,7 @@ export default function TherapyGraph({
   const bubbleList = Array.from(visibleBubbles.values()).slice(-3);
 
   return (
-    <div ref={containerRef} className="relative h-full w-full bg-[var(--color-bg-primary)]">
+    <div ref={containerRef} className="relative h-full w-full graph-bg">
       <ForceGraph2D
         ref={graphRef}
         graphData={graphData}
@@ -287,7 +289,7 @@ export default function TherapyGraph({
         enablePanInteraction={true}
       />
 
-      {/* Speech bubbles positioned at node locations */}
+      {/* Speech bubbles */}
       {bubbleList.map((bubble) => {
         const pos = bubblePositions[bubble.part];
         if (!pos) return null;
@@ -306,20 +308,20 @@ export default function TherapyGraph({
             }}
           >
             <div
-              className="max-w-[280px] rounded-xl px-3 py-2 text-sm backdrop-blur-sm bg-[var(--glass-bg-heavy)] text-[var(--color-text-primary)]"
-              style={{ border: `1px solid ${bubble.color}40` }}
+              className="max-w-[260px] rounded-lg px-3 py-2 text-[13px] leading-relaxed bg-[var(--glass-bg-heavy)] text-[var(--color-text-primary)]"
+              style={{ border: `1px solid ${bubble.color}30` }}
             >
-              <span className="text-xs font-semibold block mb-0.5" style={{ color: bubble.color }}>
+              <span className="text-[10px] font-semibold block mb-0.5" style={{ color: bubble.color }}>
                 {bubble.name}
               </span>
-              {bubble.content}
+              {bubble.content.length > 120 ? bubble.content.slice(0, 120) + "..." : bubble.content}
             </div>
             <div
               className="mx-auto w-0 h-0"
               style={{
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderTop: "6px solid var(--glass-bg-heavy)",
+                borderLeft: "5px solid transparent",
+                borderRight: "5px solid transparent",
+                borderTop: "5px solid var(--glass-bg-heavy)",
               }}
             />
           </div>
@@ -329,45 +331,51 @@ export default function TherapyGraph({
       {/* Breakthrough ceremony overlay */}
       {breakthrough && (
         <div className="absolute inset-0 z-40 flex items-center justify-center animate-breakthrough-in">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onDismissBreakthrough} />
-          <div className="relative max-w-[400px] rounded-2xl p-6 border border-[var(--color-border-accent)] bg-[var(--glass-bg-solid)]">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)]">
-                Breakthrough
-              </h3>
-            </div>
-            <h2 className="text-lg font-serif text-[var(--color-text-primary)] mb-2">
-              {breakthrough.name}
-            </h2>
-            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-              {breakthrough.insightSummary}
-            </p>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px]" onClick={onDismissBreakthrough} />
+          <div className="relative max-w-[420px] w-full mx-4 rounded-xl border border-[var(--color-border-accent)] bg-[var(--glass-bg-solid)] overflow-hidden">
+            {/* Top accent */}
+            <div className="h-0.5 bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent" />
 
-            {breakthrough.graphDiff.new_nodes.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {breakthrough.graphDiff.new_nodes.map((node) => (
-                  <span
-                    key={node.id}
-                    className="pill"
-                    style={{
-                      background: (node.color || "var(--color-accent)") + "20",
-                      color: node.color || "var(--color-accent)",
-                    }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: node.color || "var(--color-accent)" }} />
-                    {node.label}
-                  </span>
-                ))}
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-[var(--color-accent)]" style={{ animation: "pulse-glow 1.5s ease-in-out infinite" }} />
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-accent)]">
+                  Breakthrough
+                </h3>
               </div>
-            )}
+              <h2 className="text-lg font-serif font-semibold text-[var(--color-text-primary)] mb-2">
+                {breakthrough.name}
+              </h2>
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                {breakthrough.insightSummary}
+              </p>
 
-            <button
-              onClick={onDismissBreakthrough}
-              className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium transition-colors text-[var(--color-accent)] border border-[var(--color-border-accent)] hover:bg-[var(--color-accent-muted)]"
-            >
-              Continue Session
-            </button>
+              {breakthrough.graphDiff.new_nodes.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {breakthrough.graphDiff.new_nodes.map((node) => (
+                    <span
+                      key={node.id}
+                      className="pill"
+                      style={{
+                        background: (node.color || "var(--color-accent)") + "15",
+                        color: node.color || "var(--color-accent)",
+                        border: `1px solid ${(node.color || "var(--color-accent)")}25`,
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: node.color || "var(--color-accent)" }} />
+                      {node.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={onDismissBreakthrough}
+                className="mt-5 w-full py-2.5 rounded-lg text-sm font-medium transition-all text-[var(--color-accent)] border border-[var(--color-border-accent)] hover:bg-[var(--color-accent-muted)]"
+              >
+                Continue Session
+              </button>
+            </div>
           </div>
         </div>
       )}

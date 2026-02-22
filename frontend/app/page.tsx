@@ -10,6 +10,8 @@ import CaseFileOverlay from "@/components/CaseFileOverlay";
 import SessionTranscript from "@/components/SessionTranscript";
 import VectorDashboard from "@/components/graph/VectorDashboard";
 import WarmthIndicator from "@/components/WarmthIndicator";
+import ModalitySelector from "@/components/ModalitySelector";
+import SessionFeedback from "@/components/SessionFeedback";
 import {
   ChatMessage, ScenarioInfo, BreakthroughEvent,
   GraphData, GraphNode, GraphEdge, AgentStatus, SpeechBubble,
@@ -63,6 +65,15 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+// Dynamic placeholders based on session state
+const PLACEHOLDERS = {
+  initial: "Begin by addressing a part...",
+  early: "Ask a question or challenge an assumption...",
+  probing: "Probe deeper — what's underneath that response?",
+  warm: "You're getting close — push further...",
+  post: "Continue exploring or address another part...",
+};
+
 function HomeContent() {
   const [scenario, setScenario] = useState<ScenarioInfo | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
@@ -76,6 +87,7 @@ function HomeContent() {
   const [vectors, setVectors] = useState<VectorSnapshot | null>(null);
   const [warmth, setWarmth] = useState<WarmthSignal | null>(null);
   const [triggeredBreakthroughs, setTriggeredBreakthroughs] = useState(0);
+  const [selectedModality, setSelectedModality] = useState("ifs");
   const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -210,14 +222,31 @@ function HomeContent() {
 
   const dismissBreakthrough = useCallback(() => setBreakthrough(null), []);
 
-  const placeholder = selectedPart && scenario?.parts[selectedPart]
-    ? `Speaking to ${scenario.parts[selectedPart].name}...`
-    : "Ask any part a question...";
+  // Dynamic placeholder
+  const getPlaceholder = () => {
+    if (selectedPart && scenario?.parts[selectedPart]) {
+      return `Speaking to ${scenario.parts[selectedPart].name}...`;
+    }
+    if (!sessionStarted) return PLACEHOLDERS.initial;
+    if (warmth && warmth.warmth > 0.5) return PLACEHOLDERS.warm;
+    if (triggeredBreakthroughs > 0) return PLACEHOLDERS.post;
+    if (messages.length > 4) return PLACEHOLDERS.probing;
+    return PLACEHOLDERS.early;
+  };
 
   const activeAgents = Object.values(agentStatuses).filter((a) => a.status === "running");
+  const activeAgentName = activeAgents.length > 0 ? activeAgents[activeAgents.length - 1].agent : null;
+
+  const MODALITY_LABELS: Record<string, string> = {
+    ifs: "IFS",
+    cbt: "CBT",
+    psychodynamic: "PDT",
+    dbt: "DBT",
+    mi: "MI",
+  };
 
   return (
-    <main className="h-screen relative overflow-hidden bg-[var(--color-bg-primary)]">
+    <main className="h-screen flex flex-col overflow-hidden bg-[var(--color-bg-primary)]">
       {/* Case file opening overlay */}
       {!sessionStarted && scenario && (
         <CaseFileOverlay
@@ -227,76 +256,130 @@ function HomeContent() {
         />
       )}
 
-      <Header scenario={scenario} />
+      {/* Header */}
+      <Header
+        scenario={scenario}
+        currentModality={MODALITY_LABELS[selectedModality]}
+        sessionStarted={sessionStarted}
+        messageCount={messages.filter(m => m.role === "user").length}
+      />
+
+      {/* Agent status bar (only when processing) */}
       <AgentStatusBar agents={activeAgents} />
 
-      <VectorDashboard vectors={vectors} triggeredBreakthroughs={triggeredBreakthroughs} />
+      {/* Main three-column layout */}
+      <div className="flex-1 flex min-h-0">
 
-      {/* Selected part indicator */}
-      {selectedPart && scenario?.parts[selectedPart] && (
-        <div className="absolute top-14 left-4 z-20">
-          <button
-            onClick={() => setSelectedPart(null)}
-            className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5 bg-[var(--glass-bg-heavy)]"
-            style={{
-              border: `1px solid ${scenario.parts[selectedPart].color}40`,
-              color: scenario.parts[selectedPart].color,
-            }}
-          >
-            <span className="w-2 h-2 rounded-full" style={{ background: scenario.parts[selectedPart].color }} />
-            Speaking to {scenario.parts[selectedPart].name}
-            <span className="text-[var(--color-text-secondary)] ml-1">&times;</span>
-          </button>
-        </div>
-      )}
+        {/* Left Sidebar */}
+        <aside className="sidebar-left w-[280px] shrink-0 flex flex-col overflow-y-auto">
+          <div className="p-4 space-y-5 flex-1">
 
-      {/* Graph (full screen) */}
-      <div className="absolute inset-0">
-        <TherapyGraph
-          graphData={graphData}
-          onNodeClick={handleNodeClick}
-          selectedPart={selectedPart}
-          speechBubbles={speechBubbles}
-          breakthrough={breakthrough}
-          onDismissBreakthrough={dismissBreakthrough}
-        />
-      </div>
+            {/* Scenario info */}
+            {scenario && (
+              <div>
+                <p className="section-label mb-2">Current Case</p>
+                <div className="rounded-lg p-3 bg-white/[0.02] border border-[var(--glass-border)]">
+                  <h3 className="text-sm font-serif font-semibold text-[var(--color-text-primary)] mb-1">
+                    {scenario.title}
+                  </h3>
+                  <p className="text-[11px] text-[var(--color-text-tertiary)] leading-relaxed italic">
+                    {scenario.tagline}
+                  </p>
+                </div>
+              </div>
+            )}
 
-      <SessionTranscript messages={messages} isProcessing={isProcessing} />
+            {/* Selected part indicator */}
+            {selectedPart && scenario?.parts[selectedPart] && (
+              <div>
+                <p className="section-label mb-2">Addressing</p>
+                <button
+                  onClick={() => setSelectedPart(null)}
+                  className="flex items-center gap-2 text-xs w-full px-3 py-2 rounded-lg transition-colors hover:bg-white/5 bg-white/[0.02] border border-[var(--glass-border)]"
+                  style={{ borderColor: `${scenario.parts[selectedPart].color}30` }}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: scenario.parts[selectedPart].color }} />
+                  <span style={{ color: scenario.parts[selectedPart].color }}>
+                    {scenario.parts[selectedPart].name}
+                  </span>
+                  <span className="text-[var(--color-text-tertiary)] ml-auto text-[10px]">click to clear</span>
+                </button>
+              </div>
+            )}
 
-      <WarmthIndicator warmth={warmth} />
+            {/* Clinical Indicators */}
+            <VectorDashboard vectors={vectors} triggeredBreakthroughs={triggeredBreakthroughs} />
 
-      {/* Input bar */}
-      <div className="absolute bottom-0 inset-x-0 z-20">
-        <div className="flex gap-3 p-4 items-center bg-[var(--color-bg-primary)]/85 backdrop-blur-xl border-t border-[var(--glass-border)]">
-          {isSupported && (
-            <button
-              onClick={toggleListening}
-              className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors shrink-0 relative"
-              style={{
-                background: isListening ? "rgba(232, 169, 75, 0.2)" : "var(--color-border)",
-                border: isListening ? "1px solid var(--color-border-accent)" : "1px solid var(--color-border)",
-              }}
-              aria-label={isListening ? "Stop listening" : "Start voice input"}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isListening ? "var(--color-accent)" : "var(--color-text-secondary)"} strokeWidth="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-              {isListening && (
-                <span className="absolute inset-0 rounded-lg bg-[var(--color-accent)] animate-ping opacity-20" />
-              )}
-            </button>
-          )}
-          <div className="flex-1">
-            <BottomBarInput
-              onSend={sendMessage}
-              placeholder={placeholder}
+            {/* Session Feedback (after breakthrough) */}
+            <SessionFeedback triggeredBreakthroughs={triggeredBreakthroughs} messageCount={messages.length} />
+
+            {/* Modality Selector */}
+            <ModalitySelector
+              selectedModality={selectedModality}
+              onSelectModality={setSelectedModality}
             />
           </div>
+        </aside>
+
+        {/* Center: Graph */}
+        <div className="flex-1 relative min-w-0">
+          <TherapyGraph
+            graphData={graphData}
+            onNodeClick={handleNodeClick}
+            selectedPart={selectedPart}
+            speechBubbles={speechBubbles}
+            breakthrough={breakthrough}
+            onDismissBreakthrough={dismissBreakthrough}
+          />
+
+          {/* Warmth indicator — centered above input */}
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
+            <WarmthIndicator warmth={warmth} />
+          </div>
+
+          {/* Input bar */}
+          <div className="absolute bottom-0 inset-x-0 z-20">
+            <div className="flex gap-3 p-3 items-center bg-[var(--color-bg-sidebar)]/90 backdrop-blur-xl border-t border-[var(--glass-border)]">
+              {isSupported && (
+                <button
+                  onClick={toggleListening}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center transition-all shrink-0 relative"
+                  style={{
+                    background: isListening ? "rgba(212, 168, 83, 0.15)" : "rgba(255,255,255,0.04)",
+                    border: isListening ? "1px solid var(--color-border-accent)" : "1px solid var(--color-border)",
+                  }}
+                  aria-label={isListening ? "Stop listening" : "Start voice input"}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isListening ? "var(--color-accent)" : "var(--color-text-tertiary)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                  {isListening && (
+                    <span className="absolute inset-0 rounded-lg bg-[var(--color-accent)] animate-ping opacity-15" />
+                  )}
+                </button>
+              )}
+              <div className="flex-1">
+                <BottomBarInput
+                  onSend={sendMessage}
+                  placeholder={getPlaceholder()}
+                  disabled={isProcessing}
+                />
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Right Sidebar: Transcript */}
+        <aside className="sidebar-right w-[340px] shrink-0 flex flex-col min-h-0">
+          <SessionTranscript
+            messages={messages}
+            isProcessing={isProcessing}
+            activeAgent={activeAgentName}
+          />
+        </aside>
       </div>
     </main>
   );

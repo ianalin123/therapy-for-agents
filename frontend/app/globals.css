@@ -5,25 +5,38 @@
 @theme {
   --font-serif: var(--font-lora), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
   --animate-bubble-in: bubble-in 300ms ease-out forwards;
   --animate-breakthrough-in: breakthrough-in 500ms ease-out forwards;
+  --animate-fade-in: fade-in 400ms ease-out forwards;
+  --animate-slide-up: slide-up 300ms ease-out forwards;
 
-  /* Palette */
-  --color-bg-primary: #0D0D0F;
-  --color-bg-surface: #141418;
-  --color-bg-elevated: #1C1C22;
-  --color-accent: #E8A94B;
-  --color-accent-muted: rgba(232, 169, 75, 0.15);
-  --color-text-primary: #F0EDE8;
-  --color-text-secondary: #A09A92;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-accent: rgba(232, 169, 75, 0.3);
+  /* Palette — refined dark clinical */
+  --color-bg-primary: #0A0A0C;
+  --color-bg-surface: #111114;
+  --color-bg-elevated: #18181C;
+  --color-bg-sidebar: #0E0E11;
+  --color-accent: #D4A853;
+  --color-accent-muted: rgba(212, 168, 83, 0.12);
+  --color-accent-strong: rgba(212, 168, 83, 0.25);
+  --color-text-primary: #E8E5E0;
+  --color-text-secondary: #8A857E;
+  --color-text-tertiary: #5A5650;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-accent: rgba(212, 168, 83, 0.25);
+  --color-success: #6BAF7B;
+  --color-warning: #E8A94B;
+  --color-danger: #C47B8A;
 
   /* Glass panel */
-  --glass-bg: rgba(20, 20, 24, 0.75);
-  --glass-bg-heavy: rgba(20, 20, 24, 0.92);
-  --glass-bg-solid: rgba(20, 20, 24, 0.96);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(14, 14, 17, 0.85);
+  --glass-bg-heavy: rgba(14, 14, 17, 0.95);
+  --glass-bg-solid: rgba(14, 14, 17, 0.98);
+  --glass-border: rgba(255, 255, 255, 0.05);
+
+  /* Sidebar */
+  --sidebar-width: 280px;
+  --transcript-width: 340px;
 }
 
 @layer base {
@@ -32,8 +45,13 @@
     overflow: hidden;
   }
 
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   ::-webkit-scrollbar-track {
@@ -41,55 +59,75 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  ::selection {
+    background: rgba(212, 168, 83, 0.3);
+    color: #E8E5E0;
   }
 }
 
-/* Utility: glass panel (transcript, input bar, status chips) */
+/* Utility: glass panel */
 @utility glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
 }
 
-/* Utility: pill badge for part names / tags */
+/* Utility: pill badge */
 @utility pill {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   border-radius: 9999px;
   padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
-/* Utility: section label ("CASE FILE", "SESSION TRANSCRIPT", etc.) */
+/* Utility: section label */
 @utility section-label {
-  font-size: 0.75rem;
+  font-size: 0.625rem;
   line-height: 1rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-secondary);
+  letter-spacing: 0.1em;
+  color: var(--color-text-tertiary);
+  font-weight: 600;
 }
 
 input:focus {
   border-color: var(--color-border-accent) !important;
+  box-shadow: 0 0 0 1px rgba(212, 168, 83, 0.1);
 }
 
+/* Animations */
 @keyframes bubble-in {
   0% { opacity: 0; transform: translate(-50%, -90%) scale(0.8); }
   100% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
 }
 
 @keyframes breakthrough-in {
-  0% { opacity: 0; }
+  0% { opacity: 0; transform: scale(0.95); }
   30% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
   100% { opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes node-bloom {
@@ -101,4 +139,84 @@ input:focus {
 @keyframes pulse-ring {
   0% { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes typing-dot {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* Graph background pattern */
+.graph-bg {
+  background:
+    radial-gradient(ellipse at center, rgba(212, 168, 83, 0.02) 0%, transparent 70%),
+    radial-gradient(circle at center, var(--color-bg-primary) 0%, #060608 100%);
+}
+
+.graph-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* Sidebar styling */
+.sidebar-left {
+  border-right: 1px solid var(--glass-border);
+  background: var(--color-bg-sidebar);
+}
+
+.sidebar-right {
+  border-left: 1px solid var(--glass-border);
+  background: var(--color-bg-sidebar);
+}
+
+/* Message styling */
+.message-user {
+  background: rgba(212, 168, 83, 0.08);
+  border: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+.message-part {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid;
+}
+
+/* Gauge styling */
+.gauge-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.gauge-fill {
+  border-radius: 2px;
+  transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Modality card */
+.modality-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.modality-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.modality-card.active {
+  background: var(--color-accent-muted);
+  border-color: var(--color-border-accent);
 }

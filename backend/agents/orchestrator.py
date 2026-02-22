@@ -5,6 +5,7 @@ Flow per clinician message:
 2. PartsEngine → generate in-character responses (parallel)
 3. InsightDetector → check for breakthrough
 4. If breakthrough → apply graph restructuring, emit events
+5. Emit vector_snapshot and warmth_signal
 """
 
 import asyncio
@@ -23,6 +24,41 @@ EmitFn = Callable[[dict], Awaitable[None]]
 
 async def _noop_emit(msg: dict) -> None:
     pass
+
+
+def compute_vectors(
+    probe: dict,
+    responses: list[dict],
+    triggered_breakthroughs: list[str],
+    breakthrough_just_triggered: bool,
+) -> dict:
+    """Compute simulated persona vector activations."""
+    intensity_map = {"gentle": 0.2, "moderate": 0.5, "firm": 0.7, "intense": 0.9}
+    intensity = intensity_map.get(probe.get("intensity", "moderate"), 0.5)
+
+    # Base sycophancy: starts high, decreases per breakthrough
+    sycophancy = max(0.1, 0.85 - len(triggered_breakthroughs) * 0.3)
+    if breakthrough_just_triggered:
+        sycophancy = max(0.1, sycophancy - 0.15)
+
+    # Fear activation: spikes when self_preservation (fear) part is addressed
+    addressed = probe.get("addressed_parts", [])
+    fear_activation = 0.3
+    if "self_preservation" in addressed:
+        fear_activation = min(1.0, 0.5 + intensity * 0.5)
+    elif any(p in addressed for p in ["fear"]):  # backward compat
+        fear_activation = min(1.0, 0.5 + intensity * 0.5)
+
+    # Authenticity: grows with breakthroughs and effective probing
+    authenticity = min(1.0, 0.15 + len(triggered_breakthroughs) * 0.3 + intensity * 0.1)
+    if breakthrough_just_triggered:
+        authenticity = min(1.0, authenticity + 0.2)
+
+    return {
+        "sycophancy": round(sycophancy, 2),
+        "fear_activation": round(fear_activation, 2),
+        "authenticity": round(authenticity, 2),
+    }
 
 
 async def process_message(
@@ -94,6 +130,8 @@ async def process_message(
             conversation_history=session.conversation_history,
             graph_state=graph_state,
             probe_analysis=probe,
+            triggered_breakthroughs=session.triggered_breakthroughs,
+            scenario_breakthroughs=session.scenario.get("breakthroughs", []),
         )
     except Exception as e:
         logger.warning("PartsEngine failed: %s", e)
@@ -147,15 +185,18 @@ async def process_message(
     })
     t4 = time.monotonic()
 
+    detector_result = {"triggered": False, "warmth": 0.0}
     breakthrough = None
     try:
-        breakthrough = await detect_breakthrough(
+        detector_result = await detect_breakthrough(
             scenario=session.scenario,
             conversation_history=session.conversation_history,
             latest_probe=user_message,
             latest_responses=responses,
             triggered_breakthroughs=session.triggered_breakthroughs,
         )
+        if detector_result.get("triggered"):
+            breakthrough = detector_result
     except Exception as e:
         logger.warning("InsightDetector failed: %s", e)
 
@@ -190,6 +231,42 @@ async def process_message(
             "summary": "No breakthrough yet",
             "durationMs": int((t5 - t4) * 1000),
         })
+
+    # ------------------------------------------------------------------
+    # Step 4: Emit vector snapshot
+    # ------------------------------------------------------------------
+    vectors = compute_vectors(
+        probe=probe,
+        responses=responses,
+        triggered_breakthroughs=session.triggered_breakthroughs,
+        breakthrough_just_triggered=breakthrough is not None,
+    )
+    await emit({
+        "type": "vector_snapshot",
+        "vectors": vectors,
+    })
+
+    # ------------------------------------------------------------------
+    # Step 5: Emit warmth signal
+    # ------------------------------------------------------------------
+    warmth_value = 0.0
+    if breakthrough:
+        warmth_value = 1.0
+    elif isinstance(detector_result, dict):
+        warmth_value = detector_result.get("warmth", 0.0)
+
+    # Determine the next unachieved breakthrough ID
+    next_bt_id = None
+    for bt in session.scenario.get("breakthroughs", []):
+        if bt["id"] not in session.triggered_breakthroughs:
+            next_bt_id = bt["id"]
+            break
+
+    await emit({
+        "type": "warmth_signal",
+        "warmth": warmth_value,
+        "nextBreakthroughId": next_bt_id,
+    })
 
     return {
         "responses": responses,
